@@ -27,11 +27,10 @@ def main(page: ft.Page):
 
     def pick_file_result(e):
         if e.files:
-            send_input.value = e.files[0].path if isinstance(e.files, list) else e.files.path
+            send_input.value = e.files.path if isinstance(e.files, list) else e.files.path
             error_text.value = ""
             page.update()
 
-    # تعديل جوهري: تم إسناد الدالة مباشرة لتعمل على أي إصدار فليت دون مشاكل تسمية
     file_picker = ft.FilePicker()
     file_picker.on_result = pick_file_result
     file_picker.on_select = pick_file_result
@@ -97,8 +96,9 @@ def main(page: ft.Page):
                     ),
                     error_text,
                     ft.Divider(),
-                    ft.Button(
-                        content=ft.Text("الدخول إلى نظام البحث والاستعلام"),
+                    # تم إصلاح هذا الزر ليصبح ElevatedButton متوافق تماماً
+                    ft.ElevatedButton(
+                        text="الدخول إلى نظام البحث والاستعلام",
                         on_click=process_and_login,
                     ),
                 ],
@@ -128,7 +128,7 @@ def main(page: ft.Page):
                 match = res_df[res_df["POSTE"].astype(str).str.lower() == target_poste.lower()]
 
                 if not match.empty:
-                    row = match.iloc[0]
+                    row = match.iloc
                     date_str = str(row["DATE"])
                     puissance_val = row.get("PUISSANCE", "غير متوفر")
 
@@ -192,7 +192,11 @@ def main(page: ft.Page):
                     ft.Divider(),
                     result_container,
                     ft.Divider(),
-                    ft.Button(content=ft.Text("الرجوع للرئيسية"), on_click=show_home),
+                    # تم إصلاح هذا الزر ليصبح ElevatedButton متوافق تماماً
+                    ft.ElevatedButton(
+                        text="الرجوع للرئيسية", 
+                        on_click=show_home
+                    ),
                 ],
                 vertical_alignment=ft.MainAxisAlignment.START,
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
