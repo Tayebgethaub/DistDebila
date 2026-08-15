@@ -22,11 +22,11 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pandas openpyxl flet pyinstaller
+        pip install pandas openpyxl flet flet-desktop pyinstaller
 
-    - name: Build EXE with PyInstaller Forced Packages
+    - name: Build EXE with PyInstaller Full Bundle
       run: |
-        pyinstaller --noconsole --onefile --collect-all pandas --collect-all flet --collect-all openpyxl --hidden-import=pandas --hidden-import=flet --hidden-import=openpyxl tayeb.py
+        pyinstaller --noconsole --onefile --collect-all flet --collect-all flet_desktop tayeb.py
 
     - name: Upload Executable Artifact
       uses: actions/upload-artifact@v4
