@@ -25,14 +25,14 @@ def main(page: ft.Page):
     error_text = ft.Text("", color="red", size=14)
     export_status_text = ft.Text("", color="green", size=14, weight="bold")
 
-    # تم جعل القوس مرناً هنا لحل مشكلة التسمية تماماً ومنع الخطأ
     def pick_file_result(e):
         if e.files:
             send_input.value = e.files[0].path
             error_text.value = ""
             page.update()
 
-    file_picker = ft.FilePicker(on_result=pick_file_result)
+    # تم تصحيح الخصيصة هنا من on_result إلى on_select لضمان التوافق المطلق
+    file_picker = ft.FilePicker(on_select=pick_file_result)
     page.overlay.append(file_picker)
 
     def process_and_login(e):
