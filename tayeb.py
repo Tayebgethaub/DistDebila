@@ -25,7 +25,8 @@ def main(page: ft.Page):
     error_text = ft.Text("", color="red", size=14)
     export_status_text = ft.Text("", color="green", size=14, weight="bold")
 
-    def pick_file_result(e: ft.FilePickerResultEvent):
+    # تم جعل القوس مرناً هنا لحل مشكلة التسمية تماماً ومنع الخطأ
+    def pick_file_result(e):
         if e.files:
             send_input.value = e.files[0].path
             error_text.value = ""
@@ -36,7 +37,7 @@ def main(page: ft.Page):
 
     def process_and_login(e):
         global res_df
-        file_path = send_input.value.strip()
+        file_path = send_input.value.strip() if send_input.value else ""
 
         if file_path == "":
             error_text.value = "⚠️ يرجى اختيار ملف الإكسيل أولاً!"
