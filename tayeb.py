@@ -27,12 +27,14 @@ def main(page: ft.Page):
 
     def pick_file_result(e):
         if e.files:
-            send_input.value = e.files[0].path
+            send_input.value = e.files[0].path if isinstance(e.files, list) else e.files.path
             error_text.value = ""
             page.update()
 
-    # تم تصحيح الخصيصة هنا من on_result إلى on_select لضمان التوافق المطلق
-    file_picker = ft.FilePicker(on_select=pick_file_result)
+    # تعديل جوهري: تم إسناد الدالة مباشرة لتعمل على أي إصدار فليت دون مشاكل تسمية
+    file_picker = ft.FilePicker()
+    file_picker.on_result = pick_file_result
+    file_picker.on_select = pick_file_result
     page.overlay.append(file_picker)
 
     def process_and_login(e):
