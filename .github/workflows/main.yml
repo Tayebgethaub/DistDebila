@@ -33,3 +33,4 @@ jobs:
       with:
         name: tayeb-windows-app
         path: dist/tayeb.exe
+
