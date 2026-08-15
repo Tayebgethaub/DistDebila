@@ -96,7 +96,6 @@ def main(page: ft.Page):
                     ),
                     error_text,
                     ft.Divider(),
-                    # تم إصلاح هذا الزر ليصبح ElevatedButton متوافق تماماً
                     ft.ElevatedButton(
                         text="الدخول إلى نظام البحث والاستعلام",
                         on_click=process_and_login,
@@ -128,7 +127,7 @@ def main(page: ft.Page):
                 match = res_df[res_df["POSTE"].astype(str).str.lower() == target_poste.lower()]
 
                 if not match.empty:
-                    row = match.iloc
+                    row = match.iloc[0]
                     date_str = str(row["DATE"])
                     puissance_val = row.get("PUISSANCE", "غير متوفر")
 
@@ -146,7 +145,7 @@ def main(page: ft.Page):
                                     ft.Divider(),
                                     ft.Text("🔌 قراءات الجهد (V):", size=14, weight="bold", color="orange"),
                                     ft.Text(f"  ▪️ V1: {row['V1']}", color="#000000", weight="bold"),
-                                    ft.Text(f"  ▪️ V2: {row['V2']}", color="#000000", weight="bold"),
+                                    ft.Text(f"  ▪---------️ V2: {row['V2']}", color="#000000", weight="bold"),
                                     ft.Text(f"  ▪️ V3: {row['V3']}", color="#000000", weight="bold"),
                                     ft.Divider(),
                                     ft.Text("📈 الاستطاعة الكلية:", size=14, weight="bold", color="purple"),
@@ -177,7 +176,8 @@ def main(page: ft.Page):
                     ft.Row(
                         [
                             search_input,
-                            ft.Button(content=ft.Text("ابحث"), on_click=search_clicked),
+                            # تم تعديل زر "ابحث" الصغير هنا ليصبح ElevatedButton متوافقاً تماماً
+                            ft.ElevatedButton(text="ابحث", on_click=search_clicked),
                         ],
                         alignment=ft.MainAxisAlignment.CENTER,
                     ),
@@ -192,7 +192,6 @@ def main(page: ft.Page):
                     ft.Divider(),
                     result_container,
                     ft.Divider(),
-                    # تم إصلاح هذا الزر ليصبح ElevatedButton متوافق تماماً
                     ft.ElevatedButton(
                         text="الرجوع للرئيسية", 
                         on_click=show_home
