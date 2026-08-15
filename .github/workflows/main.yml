@@ -1,42 +1,36 @@
-# اسم سير العمل (Workflow)
-name: Build Windows EXE
+name: Build Windows Executable
 
-# تحديد متى يتم تشغيل هذا الملف (عند دفع كود جديد إلى الفرع الرئيسي "main")
 on:
   push:
-    branches: [ "main" ]
+    branches:
+      - main
+  workflow_dispatch:
 
-# الوظائف التي سيقوم بها السيرفر الافتراضي
 jobs:
   build:
-    # تشغيل المهمة على خادم ويندوز افتراضي توفره جيت هاب
     runs-on: windows-latest
 
     steps:
-    # 1. سحب ملفات المشروع الحالي إلى داخل السيرفر
-    - name: Checkout Repository
+    - name: Checkout code
       uses: actions/checkout@v4
 
-    # 2. إعداد وتثبيت لغة بايثون على سيرفر ويندوز
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.10'
+        python-version: '3.11'
 
-    # 3. تثبيت المكتبات اللازمة ومكتبة التحويل PyInstaller
-    - name: Install Dependencies
+    - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pyinstaller
+        pip install pandas openpyxl flet pyinstaller
 
-    # 4. تشغيل أمر التحويل لملف tayeb.py إلى ملف EXE واحد مستقل
-    - name: Build EXE File
+    - name: Build EXE with PyInstaller Forced Packages
       run: |
-        pyinstaller --onefile tayeb.py
+        pyinstaller --noconsole --onefile --collect-all pandas --collect-all flet --collect-all openpyxl --hidden-import=pandas --hidden-import=flet --hidden-import=openpyxl tayeb.py
 
-    # 5. رفع ملف الـ EXE الناتج إلى صفحة جيت هاب لكي تتمكن من تحميله
-    - name: Upload Artifact
+    - name: Upload Executable Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: windows-executable
+        name: tayeb-windows-app
         path: dist/tayeb.exe
+
