@@ -7,30 +7,39 @@ ssl._create_default_https_context = ssl._create_unverified_context
 
 res_df = None
 
-
 def main(page: ft.Page):
     global res_df
     page.title = "نظام إدارة وبحث المحطات الكهربائية"
     page.vertical_alignment = ft.MainAxisAlignment.CENTER
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
-
     page.window_width = 520
     page.window_height = 700
 
     send_input = ft.TextField(
-        label="أدخل مسار أو عنوان الملف",
-        hint_text="اكتب مسار ملف الإكسيل هنا (مثال: C:/data/file.xlsx)",
+        label="مسار ملف الإكسيل المختار",
+        hint_text="سيظهر مسار الملف هنا تلقائياً بعد اختيارة",
         width=400,
+        read_only=True
     )
 
     error_text = ft.Text("", color="red", size=14)
+    export_status_text = ft.Text("", color="green", size=14, weight="bold")
+
+    def pick_file_result(e: ft.FilePickerResultEvent):
+        if e.files:
+            send_input.value = e.files[0].path
+            error_text.value = ""
+            page.update()
+
+    file_picker = ft.FilePicker(on_result=pick_file_result)
+    page.overlay.append(file_picker)
 
     def process_and_login(e):
         global res_df
         file_path = send_input.value.strip()
 
         if file_path == "":
-            error_text.value = "⚠️ يرجى إدخال مسار الملف أولاً!"
+            error_text.value = "⚠️ يرجى اختيار ملف الإكسيل أولاً!"
             page.update()
             return
 
@@ -49,10 +58,24 @@ def main(page: ft.Page):
             show_search_page()
 
         except Exception as ex:
-            error_text.value = (
-                f"❌ خطأ! تأكد من مسار الملف أو صحة البيانات بداخلة."
-            )
+            error_text.value = "❌ خطأ! تأكد من صحة بيانات ملف الإكسيل المختار."
             page.update()
+
+    def export_data_clicked(e):
+        global res_df
+        if res_df is not None:
+            try:
+                desktop_path = os.path.join(os.path.join(os.environ['USERPROFILE']), 'Desktop', 'Highest_Current_Stations_Report.xlsx')
+                res_df.to_excel(desktop_path, index=False)
+                export_status_text.value = "✅ تم تصدير الجدول بالكامل بنجاح إلى سطح المكتب!"
+                export_status_text.color = "green"
+            except Exception as ex:
+                export_status_text.value = "❌ فشل التصدير، تأكد من إغلاق ملف التقرير إذا كان مفتوحاً مسبقاً."
+                export_status_text.color = "red"
+        else:
+            export_status_text.value = "❌ لا توجد بيانات لتصديرها!"
+            export_status_text.color = "red"
+        page.update()
 
     def show_home(e=None):
         page.views.clear()
@@ -60,18 +83,17 @@ def main(page: ft.Page):
             ft.View(
                 route="/",
                 controls=[
-                    ft.AppBar(
-                        title=ft.Text("الصفحة الرئيسية"), bgcolor="blue"
-                    ),
-                    ft.Text(
-                        "مرحباً بك في نظام إدارة المحطات",
-                        size=22,
-                        weight=ft.FontWeight.BOLD,
-                    ),
+                    ft.AppBar(title=ft.Text("الصفحة الرئيسية"), bgcolor="blue"),
+                    ft.Text("مرحباً بك في نظام إدارة المحطات", size=22, weight=ft.FontWeight.BOLD),
                     ft.Text("مشروع DistDebila", size=14, color="grey"),
                     ft.Divider(),
                     send_input,
+                    ft.ElevatedButton(
+                        text="اختر ملف الإكسيل من جهازك 📁",
+                        on_click=lambda _: file_picker.pick_files(allow_multiple=False, allowed_extensions=["xlsx", "xls"])
+                    ),
                     error_text,
+                    ft.Divider(),
                     ft.Button(
                         content=ft.Text("الدخول إلى نظام البحث والاستعلام"),
                         on_click=process_and_login,
@@ -88,26 +110,19 @@ def main(page: ft.Page):
         search_input = ft.TextField(
             label="أدخل اسم المحطة بدقة", hint_text="مثال: P10", width=250
         )
-        result_container = ft.Column(
-            horizontal_alignment=ft.CrossAxisAlignment.CENTER
-        )
+        result_container = ft.Column(horizontal_alignment=ft.CrossAxisAlignment.CENTER)
+        export_status_text.value = ""
 
         def search_clicked(ev):
             target_poste = search_input.value.strip()
             result_container.controls.clear()
 
             if target_poste == "":
-                result_container.controls.append(
-                    ft.Text("⚠️ يرجى كتابة اسم المحطة أولاً!", color="red")
-                )
+                result_container.controls.append(ft.Text("⚠️ يرجى كتابة اسم المحطة أولاً!", color="red"))
             elif res_df is None:
-                result_container.controls.append(
-                    ft.Text("❌ البيانات غير محملة بشكل صحيح!", color="red")
-                )
+                result_container.controls.append(ft.Text("❌ البيانات غير محملة بشكل صحيح!", color="red"))
             else:
-                match = res_df[
-                    res_df["POSTE"].astype(str).str.lower() == target_poste.lower()
-                ]
+                match = res_df[res_df["POSTE"].astype(str).str.lower() == target_poste.lower()]
 
                 if not match.empty:
                     row = match.iloc[0]
@@ -118,57 +133,23 @@ def main(page: ft.Page):
                         ft.Container(
                             content=ft.Column(
                                 [
-                                    ft.Text(
-                                        f"📊 بيانات واستطاعة المحطة المكتشفة: {row['POSTE']}",
-                                        size=18,
-                                        weight="bold",
-                                        color="blue",
-                                    ),
+                                    ft.Text(f"📊 بيانات واستطاعة المحطة المكتشفة: {row['POSTE']}", size=18, weight="bold", color="blue"),
                                     ft.Divider(),
-                                    ft.Text(
-                                        "⚡ قراءات التيار (A):",
-                                        size=14,
-                                        weight="bold",
-                                        color="blue",
-                                    ),
-                                    ft.Text(f"  ▪️ I1: {row['I1']}"),
-                                    ft.Text(f"  ▪️ I2: {row['I2']}"),
-                                    ft.Text(f"  ▪️ I3: {row['I3']}"),
-                                    ft.Text(
-                                        f"  📈 Total I: {row['Total_I']}",
-                                        weight="bold",
-                                        color="green",
-                                    ),
+                                    ft.Text("⚡ قراءات التيار (A):", size=14, weight="bold", color="blue"),
+                                    ft.Text(f"  ▪️ I1: {row['I1']}", color="#000000", weight="bold"),
+                                    ft.Text(f"  ▪️ I2: {row['I2']}", color="#000000", weight="bold"),
+                                    ft.Text(f"  ▪️ I3: {row['I3']}", color="#000000", weight="bold"),
+                                    ft.Text(f"  📈 Total I: {row['Total_I']}", weight="bold", color="green"),
                                     ft.Divider(),
-                                    ft.Text(
-                                        "🔌 قراءات الجهد (V):",
-                                        size=14,
-                                        weight="bold",
-                                        color="orange",
-                                    ),
-                                    ft.Text(f"  ▪️ V1: {row['V1']}"),
-                                    ft.Text(f"  ▪️ V2: {row['V2']}"),
-                                    ft.Text(f"  ▪️ V3: {row['V3']}"),
+                                    ft.Text("🔌 قراءات الجهد (V):", size=14, weight="bold", color="orange"),
+                                    ft.Text(f"  ▪️ V1: {row['V1']}", color="#000000", weight="bold"),
+                                    ft.Text(f"  ▪️ V2: {row['V2']}", color="#000000", weight="bold"),
+                                    ft.Text(f"  ▪️ V3: {row['V3']}", color="#000000", weight="bold"),
                                     ft.Divider(),
-                                    ft.Text(
-                                        "📈 الاستطاعة الكلية:",
-                                        size=14,
-                                        weight="bold",
-                                        color="purple",
-                                    ),
-                                    ft.Text(
-                                        f"  ▪️ PUISSANCE: {puissance_val}",
-                                        size=16,
-                                        weight="bold",
-                                        color="purple_700",
-                                    ),
+                                    ft.Text("📈 الاستطاعة الكلية:", size=14, weight="bold", color="purple"),
+                                    ft.Text(f"  ▪️ PUISSANCE: {puissance_val}", size=16, weight="bold", color="#000000"),
                                     ft.Divider(),
-                                    ft.Text(
-                                        f"📅 تاريخ قياس المحطة: {date_str}",
-                                        size=14,
-                                        weight="bold",
-                                        color="purple",
-                                    ),
+                                    ft.Text(f"📅 تاريخ قياس المحطة: {date_str}", size=14, weight="bold", color="purple"),
                                 ],
                                 spacing=6,
                             ),
@@ -180,12 +161,7 @@ def main(page: ft.Page):
                         )
                     )
                 else:
-                    result_container.controls.append(
-                        ft.Text(
-                            "❌ عذراً، لم يتم العثور على هذه المحطة!",
-                            color="red",
-                        )
-                    )
+                    result_container.controls.append(ft.Text("❌ عذراً، لم يتم العثور على هذه المحطة!", color="red"))
             page.update()
 
         page.views.clear()
@@ -193,26 +169,27 @@ def main(page: ft.Page):
             ft.View(
                 route="/search",
                 controls=[
-                    ft.AppBar(
-                        title=ft.Text("نافذة البحث والاستعلام"),
-                        bgcolor="green",
-                    ),
+                    ft.AppBar(title=ft.Text("نافذة البحث والاستعلام"), bgcolor="green"),
                     ft.Text("استعلام عن محطة كهربائية", size=18, weight="bold"),
                     ft.Row(
                         [
                             search_input,
-                            ft.Button(
-                                content=ft.Text("ابحث"), on_click=search_clicked
-                            ),
+                            ft.Button(content=ft.Text("ابحث"), on_click=search_clicked),
                         ],
                         alignment=ft.MainAxisAlignment.CENTER,
                     ),
                     ft.Divider(),
+                    ft.ElevatedButton(
+                        text="تصدير التقرير المفلتر كاملاً إلى إكسيل 📄",
+                        color=ft.colors.WHITE,
+                        bgcolor=ft.colors.BLUE_700,
+                        on_click=export_data_clicked
+                    ),
+                    export_status_text,
+                    ft.Divider(),
                     result_container,
                     ft.Divider(),
-                    ft.Button(
-                        content=ft.Text("الرجوع للرئيسية"), on_click=show_home
-                    ),
+                    ft.Button(content=ft.Text("الرجوع للرئيسية"), on_click=show_home),
                 ],
                 vertical_alignment=ft.MainAxisAlignment.START,
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
@@ -221,6 +198,5 @@ def main(page: ft.Page):
         page.update()
 
     show_home()
-
 
 ft.run(main)
