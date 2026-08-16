@@ -21,11 +21,12 @@ def main(page: ft.Page):
     error_txt = ft.Text("", color="red", size=14)
     res_container = ft.Column(horizontal_alignment=ft.CrossAxisAlignment.CENTER)
 
-    # دالة متزامنة ذكية تستدعي الفايل بيكر الحديث مباشرة في سطر واحد بدون overlay
+    # 📁 دالة استقبال الملف المختار وتفكيك الصندوق الكرتوني للويندوز بأمان
     async def handle_pick_files(e: ft.Event[ft.Button]):
         files = await ft.FilePicker().pick_files(allow_multiple=False, allowed_extensions=["xlsx", "xls"])
         if files:
-            path_in.value = files.path if isinstance(files, list) else files.path
+            # التصحيح الحاسم: قراءة السطر الأول من قائمة الملفات ليفهمه الويندوز فوراً
+            path_in.value = files[0].path if isinstance(files, list) else files.path
             error_txt.value = ""
             page.update()
 
@@ -50,7 +51,7 @@ def main(page: ft.Page):
             error_txt.color = "red"
             page.update()
 
-    # دالة البحث والاستعلام بالجدول المنظم بعد تصحيح الـ iloc[0] المضمون
+    # دالة البحث والاستعلام بالجدول المنظم بعد تثبيت السطر الصافي [0]
     def search_station(e):
         global res_df
         res_container.controls.clear()
@@ -63,7 +64,7 @@ def main(page: ft.Page):
         
         match = res_df[res_df["POSTE"].astype(str).str.lower() == search_in.value.strip().lower()]
         if not match.empty:
-            # التريث والتصحيح: تحديد السطر الأول [0] ليفهمه محرك بايثون فوراً وبدون تعليق
+            # التثبيت الفعلي للسطر الأول الصافي لحل مشكلة قراءة البيانات
             row = match.iloc[0]
             v1_val = row.get("V1", "غير متوفر")
             v2_val = row.get("V2", "غير متوفر")
@@ -117,6 +118,7 @@ def main(page: ft.Page):
             view_search.visible = True
         page.update()
 
+    # واجهة تحميل البيانات المستقرة كلياً بلمسة أحمد الحديثة
     view_load = ft.Column(
         horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         controls=[
