@@ -1,179 +1,161 @@
-import ssl
-import os
+import os, ssl
 import pandas as pd
 import flet as ft
 
 ssl._create_default_https_context = ssl._create_unverified_context
-
 res_df = None
 
-def main(page: ft.Page):
-    global res_df
-    page.title = "نظام إدارة وبحث المحطات الكهربائية"
-    page.window_width = 600
-    page.window_height = 750
+@ft.control
+class PosteApp(ft.Column):
+    def init(self):
+        self.path_in = ft.TextField(label="أدخل مسار ملف الإكسيل بدقة", hint_text="مثال: C:/data/file.xlsx", width=450)
+        self.search_in = ft.TextField(label="أدخل اسم المحطة بدقة", hint_text="مثال: P10", width=250)
+        self.error_txt = ft.Text("", color="red", size=14)
+        self.res_container = ft.Column(horizontal_alignment=ft.CrossAxisAlignment.CENTER)
 
-    send_input = ft.TextField(
-        label="مسار ملف الإكسيل المختار",
-        hint_text="سيظهر مسار الملف هنا تلقائياً بعد اختياره",
-        width=450,
-        read_only=True
-    )
+        self.filter = ft.TabBar(
+            scrollable=False,
+            tabs=[
+                ft.Tab(label="تحميل البيانات"),
+                ft.Tab(label="البحث والتصدير"),
+            ],
+        )
 
-    error_text = ft.Text("", color="red", size=14)
-    export_status_text = ft.Text("", color="green", size=14, weight="bold")
+        self.filter_tabs = ft.Tabs(
+            length=2,
+            selected_index=0,
+            on_change=self.tabs_changed,
+            content=self.filter,
+        )
 
-    def pick_file_result(e):
-        if e.files:
-            send_input.value = e.files[0].path if isinstance(e.files, list) else e.files.path
-            error_text.value = ""
-            page.update()
+        self.view_load = ft.Column(
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            controls=[
+                ft.Text("مرحباً بك في نظام إدارة المحطات", size=22, weight=ft.FontWeight.BOLD),
+                ft.Text("مشروع DistDebila", size=14, color="grey"),
+                ft.Divider(),
+                self.path_in,
+                ft.Button(content=ft.Text("الدخول ونظام المعالجة"), on_click=self.start_process),
+            ]
+        )
 
-    file_picker = ft.FilePicker(on_result=pick_file_result)
-    page.overlay.append(file_picker)
+        self.view_search = ft.Column(
+            visible=False,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            controls=[
+                ft.Text("استعلام عن محطة كهربائية", size=18, weight="bold"),
+                ft.Row([self.search_in, ft.Button(content=ft.Text("ابحث"), on_click=self.search_station)], alignment=ft.MainAxisAlignment.CENTER),
+                ft.Divider(),
+                ft.Button(content=ft.Text("تصدير التقرير المفلتر كاملاً إلى إكسيل 📄"), on_click=self.export_data),
+                ft.Divider(),
+                self.res_container
+            ]
+        )
 
-    def process_and_login(e):
+        self.width = 600
+        self.controls = [
+            self.filter_tabs,
+            ft.Divider(),
+            self.view_load,
+            self.view_search,
+            self.error_txt
+        ]
+
+    def start_process(self, e):
         global res_df
-        file_path = send_input.value.strip() if send_input.value else ""
-
-        if file_path == "":
-            error_text.value = "⚠️ يرجى اختيار ملف الإكسيل أولاً!"
-            page.update()
-            return
-
+        if not self.path_in.value.strip():
+            self.error_txt.value = "⚠️ يرجى إدخال مسار ملف الإكسيل أولاً!"
+            self.error_txt.color = "red"
+            self.update(); return
         try:
-            df = pd.read_excel(file_path)
+            df = pd.read_excel(self.path_in.value.strip())
             df_clean = df.dropna(subset=["POSTE", "I1", "I2", "I3"]).copy()
             df_clean["Total_I"] = df_clean["I1"] + df_clean["I2"] + df_clean["I3"]
-
-            idx = df_clean.groupby(["POSTE"])["Total_I"].idxmax()
-            res_df = df_clean.loc[idx].copy()
+            res_df = df_clean.loc[df_clean.groupby("POSTE")["Total_I"].idxmax()].copy()
             res_df["POSTE"] = res_df["POSTE"].replace("853P", "P", regex=True)
-
-            error_text.value = ""
-            show_search_page()
-
+            
+            self.error_txt.value = "✅ تم تحميل ومعالجة البيانات بنجاح! انتقل لتبويب البحث."
+            self.error_txt.color = "green"
+            self.update()
         except Exception:
-            error_text.value = "❌ خطأ! تأكد من صحة بيانات ملف الإكسيل المختار."
-            page.update()
+            self.error_txt.value = "❌ خطأ في مسار الملف أو صحة البيانات بداخلة!"
+            self.error_txt.color = "red"
+            self.update()
 
-    def export_data_clicked(e):
+    def search_station(self, e):
+        global res_df
+        self.res_container.controls.clear()
+        if not self.search_in.value.strip():
+            self.res_container.controls.append(ft.Text("⚠️ يرجى كتابة اسم المحطة أولاً!", color="red"))
+            self.update(); return
+        if res_df is None:
+            self.res_container.controls.append(ft.Text("❌ يرجى تحميل ومعالجة البيانات من التبويب الأول أولاً!", color="red"))
+            self.update(); return
+        
+        match = res_df[res_df["POSTE"].astype(str).str.lower() == self.search_in.value.strip().lower()]
+        if not match.empty:
+            row = match.iloc[0]
+            v1_val = row.get("V1", "غير متوفر")
+            v2_val = row.get("V2", "غير متوفر")
+            v3_val = row.get("V3", "غير متوفر")
+            
+            result_table = ft.DataTable(
+                columns=[
+                    ft.DataColumn(ft.Text("الخاصية", color="blue", weight="bold")),
+                    ft.DataColumn(ft.Text("القيمة المسجلة", color="blue", weight="bold")),
+                ],
+                rows=[
+                    ft.DataRow(cells=[ft.DataCell(ft.Text("I1", color="black")), ft.DataCell(ft.Text(str(row["I1"]), color="black", weight="bold"))]),
+                    ft.DataRow(cells=[ft.DataCell(ft.Text("I2", color="black")), ft.DataCell(ft.Text(str(row["I2"]), color="black", weight="bold"))]),
+                    ft.DataRow(cells=[ft.DataCell(ft.Text("I3", color="black")), ft.DataCell(ft.Text(str(row["I3"]), color="black", weight="bold"))]),
+                    ft.DataRow(cells=[ft.DataCell(ft.Text("Total I", color="green")), ft.DataCell(ft.Text(str(row["Total_I"]), color="green", weight="bold"))]),
+                    ft.DataRow(cells=[ft.DataCell(ft.Text("V1", color="black")), ft.DataCell(ft.Text(str(v1_val), color="black", weight="bold"))]),
+                    ft.DataRow(cells=[ft.DataCell(ft.Text("V2", color="black")), ft.DataCell(ft.Text(str(v2_val), color="black", weight="bold"))]),
+                    ft.DataRow(cells=[ft.DataCell(ft.Text("V3", color="black")), ft.DataCell(ft.Text(str(v3_val), color="black", weight="bold"))]),
+                    ft.DataRow(cells=[ft.DataCell(ft.Text("PUISSANCE", color="purple")), ft.DataCell(ft.Text(str(row.get("PUISSANCE", "غير متوفر")), color="purple", weight="bold"))]),
+                    ft.DataRow(cells=[ft.DataCell(ft.Text("DATE", color="purple")), ft.DataCell(ft.Text(str(row.get("DATE", "غير متوفر")), color="purple", weight="bold"))]),
+                ]
+            )
+            self.res_container.controls.append(result_table)
+        else:
+            self.res_container.controls.append(ft.Text("❌ عذراً، لم يتم العثور على هذه المحطة!", color="red"))
+        self.update()
+
+    def export_data(self, e):
         global res_df
         if res_df is not None:
             try:
                 desktop_path = os.path.join(os.path.expanduser("~"), "Desktop", "Highest_Current_Stations_Report.xlsx")
                 res_df.to_excel(desktop_path, index=False)
-                export_status_text.value = "✅ تم تصدير الجدول بالكامل بنجاح إلى سطح المكتب!"
-                export_status_text.color = "green"
+                self.error_txt.value = "✅ تم تصدير الجدول بالكامل بنجاح إلى سطح المكتب!"
+                self.error_txt.color = "green"
             except Exception:
-                export_status_text.value = "❌ فشل التصدير، تأكد من إغلاق ملف التقرير إذا كان مفتوحاً مسبقاً."
-                export_status_text.color = "red"
+                self.error_txt.value = "❌ فشل التصدير، تأكد من إغلاق ملف التقرير إذا كان مفتوحاً مسبقاً."
+                self.error_txt.color = "red"
         else:
-            export_status_text.value = "❌ لا توجد بيانات لتصديرها!"
-            export_status_text.color = "red"
-        page.update()
+            self.error_txt.value = "❌ لا توجد بيانات لتصديرها!"
+            self.error_txt.color = "red"
+        self.update()
 
-    def show_home(e=None):
-        page.views.clear()
-        page.views.append(
-            ft.View(
-                route="/",
-                controls=[
-                    ft.AppBar(title=ft.Text("الصفحة الرئيسية"), bgcolor="blue"),
-                    ft.Text("مرحباً بك في نظام إدارة المحطات", size=22, weight=ft.FontWeight.BOLD),
-                    ft.Text("مشروع DistDebila", size=14, color="grey"),
-                    ft.Divider(),
-                    send_input,
-                    ft.ElevatedButton(
-                        text="اختر ملف الإكسيل من جهازك 📁",
-                        on_click=lambda _: file_picker.pick_files(allow_multiple=False, allowed_extensions=["xlsx", "xls"])
-                    ),
-                    error_text,
-                    ft.Divider(),
-                    ft.ElevatedButton(
-                        text="الدخول إلى نظام البحث والاستعلام",
-                        on_click=process_and_login,
-                    ),
-                ],
-                vertical_alignment=ft.MainAxisAlignment.CENTER,
-                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-            )
-        )
-        page.update()
+    def tabs_changed(self, e):
+        if self.filter_tabs.selected_index == 0:
+            self.view_load.visible = True
+            self.view_search.visible = False
+        else:
+            self.view_load.visible = False
+            self.view_search.visible = True
+        self.update()
 
-    def show_search_page(e=None):
-        global res_df
-        search_input = ft.TextField(label="أدخل اسم المحطة بدقة", hint_text="مثال: P10", width=250)
-        result_container = ft.Column(horizontal_alignment=ft.CrossAxisAlignment.CENTER)
-        export_status_text.value = ""
 
-        def search_clicked(ev):
-            target_poste = search_input.value.strip()
-            result_container.controls.clear()
+def main(page: ft.Page):
+    page.title = "نظام المحطات الكهربائية"
+    page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
+    page.window_width = 600
+    page.window_height = 750
+    
+    app = PosteApp()
+    page.add(app)
+    page.update()  # حركة ذكية لإظهار المحتوى فوراً
 
-            if target_poste == "":
-                result_container.controls.append(ft.Text("⚠️ يرجى كتابة اسم المحطة أولاً!", color="red"))
-            elif res_df is None:
-                result_container.controls.append(ft.Text("❌ البيانات غير محملة بشكل صحيح!", color="red"))
-            else:
-                match = res_df[res_df["POSTE"].astype(str).str.lower() == target_poste.lower()]
-                if not match.empty:
-                    row = match.iloc[0]
-                    date_str = str(row.get("DATE", "غير متوفر"))
-                    puissance_val = row.get("PUISSANCE", "غير متوفر")
-                    v1_val = row.get("V1", "غير متوفر")
-                    v2_val = row.get("V2", "غير متوفر")
-                    v3_val = row.get("V3", "غير متوفر")
-
-                    result_table = ft.DataTable(
-                        columns=[
-                            ft.DataColumn(ft.Text("الخاصية")),
-                            ft.DataColumn(ft.Text("القيمة")),
-                        ],
-                        rows=[
-                            ft.DataRow(cells=[ft.DataCell(ft.Text("I1")), ft.DataCell(ft.Text(str(row["I1"])))]),
-                            ft.DataRow(cells=[ft.DataCell(ft.Text("I2")), ft.DataCell(ft.Text(str(row["I2"])))]),
-                            ft.DataRow(cells=[ft.DataCell(ft.Text("I3")), ft.DataCell(ft.Text(str(row["I3"])))]),
-                            ft.DataRow(cells=[ft.DataCell(ft.Text("Total I")), ft.DataCell(ft.Text(str(row["Total_I"])))]),
-                            ft.DataRow(cells=[ft.DataCell(ft.Text("V1")), ft.DataCell(ft.Text(str(v1_val)))]),
-                            ft.DataRow(cells=[ft.DataCell(ft.Text("V2")), ft.DataCell(ft.Text(str(v2_val)))]),
-                            ft.DataRow(cells=[ft.DataCell(ft.Text("V3")), ft.DataCell(ft.Text(str(v3_val)))]),
-                            ft.DataRow(cells=[ft.DataCell(ft.Text("PUISSANCE")), ft.DataCell(ft.Text(str(puissance_val)))]),
-                            ft.DataRow(cells=[ft.DataCell(ft.Text("DATE")), ft.DataCell(ft.Text(date_str))]),
-                        ]
-                    )
-                    result_container.controls.append(result_table)
-                else:
-                    result_container.controls.append(ft.Text("❌ عذراً، لم يتم العثور على هذه المحطة!", color="red"))
-            page.update()
-
-        page.views.clear()
-        page.views.append(
-            ft.View(
-                route="/search",
-                controls=[
-                    ft.AppBar(title=ft.Text("نافذة البحث والاستعلام"), bgcolor="green"),
-                    ft.Text("استعلام عن محطة كهربائية", size=18, weight="bold"),
-                    ft.Row([search_input, ft.ElevatedButton(text="ابحث", on_click=search_clicked)], alignment=ft.MainAxisAlignment.CENTER),
-                    ft.Divider(),
-                    ft.ElevatedButton(
-                        text="تصدير التقرير المفلتر كاملاً إلى إكسيل 📄",
-                        color=ft.colors.WHITE,
-                        bgcolor=ft.colors.BLUE_700,
-                        on_click=export_data_clicked
-                    ),
-                    export_status_text,
-                    ft.Divider(),
-                    result_container,
-                    ft.Divider(),
-                    ft.ElevatedButton(text="الرجوع للرئيسية", on_click=show_home),
-                ],
-                vertical_alignment=ft.MainAxisAlignment.START,
-                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-            )
-        )
-        page.update()
-
-    show_home()
-
-ft.run(main)
+if __name__ == "__main__":
+    ft.run(main)
