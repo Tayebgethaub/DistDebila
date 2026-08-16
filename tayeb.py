@@ -5,7 +5,8 @@ import flet as ft
 ssl._create_default_https_context = ssl._create_unverified_context
 res_df = None
 
-def main(page: ft.Page):
+# تحويل الدالة لتعمل بنظام async ليتوافق مع تحديثات 2026
+async def main(page: ft.Page):
     global res_df
     
     page.title = "نظام المحطات الكهربائية"
@@ -19,19 +20,21 @@ def main(page: ft.Page):
     error_txt = ft.Text("", color="red", size=14)
     res_container = ft.Column(horizontal_alignment=ft.CrossAxisAlignment.CENTER)
 
-    def pick_file_result(e):
+    # دالة استقبال الملف المختار بالماوس
+    async def pick_file_result(e):
         if e.files:
             path_in.value = e.files.path if hasattr(e.files, 'path') else e.files.path
             error_txt.value = ""
-            page.update()
+            await page.update_async()
 
-    # 💡 التعلم من الخطأ: إنشاء الأداة فارغة تماماً لقطع أي تضارب داخل الأقواس
     file_picker = ft.FilePicker()
-    
-    # إسناد دالة الاستقبال ديناميكياً في أسطر مستقلة لضمان التوافق المطلق
     file_picker.on_result = pick_file_result
     file_picker.on_select = pick_file_result
     page.overlay.append(file_picker)
+
+    # دالة زر فتح مجلدات الكمبيوتر بالماوس بشكل متزامن صحيح
+    async def open_picker_click(e):
+        await file_picker.pick_files(allow_multiple=False, allowed_extensions=["xlsx", "xls"])
 
     def start_process(e):
         global res_df
@@ -66,7 +69,7 @@ def main(page: ft.Page):
         
         match = res_df[res_df["POSTE"].astype(str).str.lower() == search_in.value.strip().lower()]
         if not match.empty:
-            row = match.iloc[0]
+            row = match.iloc
             v1_val = row.get("V1", "غير متوفر")
             v2_val = row.get("V2", "غير متوفر")
             v3_val = row.get("V3", "غير متوفر")
@@ -124,7 +127,8 @@ def main(page: ft.Page):
             ft.Text("مرحباً بك في نظام إدارة المحطات", size=22, weight=ft.FontWeight.BOLD, color="black"),
             ft.Text("مشروع DistDebila", size=14, color="grey"),
             ft.Divider(),
-            ft.Row([path_in, ft.Button(content=ft.Text("اختر الملف 📁"), on_click=lambda _: file_picker.pick_files(allow_multiple=False, allowed_extensions=["xlsx", "xls"]))], alignment=ft.MainAxisAlignment.CENTER),
+            # ربط الزر بالدالة المتزامنة الحديثة
+            ft.Row([path_in, ft.Button(content=ft.Text("اختر الملف 📁"), on_click=open_picker_click)], alignment=ft.MainAxisAlignment.CENTER),
             ft.Button(content=ft.Text("الدخول ونظام المعالجة"), on_click=start_process),
         ]
     )
