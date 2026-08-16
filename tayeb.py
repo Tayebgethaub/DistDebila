@@ -83,8 +83,8 @@ def main(page: ft.Page):
                     ft.DataRow(cells=[ft.DataCell(ft.Text("V1", color="black")), ft.DataCell(ft.Text(str(v1_val), color="black", weight="bold"))]),
                     ft.DataRow(cells=[ft.DataCell(ft.Text("V2", color="black")), ft.DataCell(ft.Text(str(v2_val), color="black", weight="bold"))]),
                     ft.DataRow(cells=[ft.DataCell(ft.Text("V3", color="black")), ft.DataCell(ft.Text(str(v3_val), color="black", weight="bold"))]),
-                    ft.DataRow(cells=[ft.DataCell(ft.Text("PUISSANCE", color="purple")), ft.DataCell(ft.Text(str(row.get("PUISSANCE", "غير متوفر")), color="purple", weight="bold"))]),
-                    ft.DataRow(cells=[ft.DataCell(ft.Text("DATE", color="purple")), ft.DataCell(ft.Text(str(row.get("DATE", "غير متوفر")), color="purple", weight="bold"))]),
+                    ft.DataRow(cells=[ft.DataCell(ft.Text("PUISSANCE", color="black")), ft.DataCell(ft.Text(str(row.get("PUISSANCE", "غير متوفر")), color="black", weight="bold"))]),
+                    ft.DataRow(cells=[ft.DataCell(ft.Text("DATE", color="black")), ft.DataCell(ft.Text(str(row.get("DATE", "غير متوفر")), color="black", weight="bold"))]),
                 ]
             )
             res_container.controls.append(result_table)
