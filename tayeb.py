@@ -5,37 +5,33 @@ import flet as ft
 ssl._create_default_https_context = ssl._create_unverified_context
 res_df = None
 
-# تحويل الدالة لتعمل بنظام async ليتوافق مع تحديثات 2026
-async def main(page: ft.Page):
+def main(page: ft.Page):
     global res_df
     
+    # تثبيت إعدادات الشاشة البيضاء الناصعة المريحة ومنع السواد والتمرير بالماوس
     page.title = "نظام المحطات الكهربائية"
     page.theme_mode = ft.ThemeMode.LIGHT
     page.scroll = ft.ScrollMode.AUTO
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     page.window_width, page.window_height = 600, 750
 
+    # المكونات الرسومية الصافية والمستقرة
     path_in = ft.TextField(label="مسار ملف الإكسيل المختار", hint_text="سيظهر المسار هنا بعد الاختيار 📁", width=400, read_only=True)
     search_in = ft.TextField(label="أدخل اسم المحطة بدقة", hint_text="مثال: P10", width=250)
     error_txt = ft.Text("", color="red", size=14)
     res_container = ft.Column(horizontal_alignment=ft.CrossAxisAlignment.CENTER)
 
-    # دالة استقبال الملف المختار بالماوس
-    async def pick_file_result(e):
+    # 📁 دالة استقبال واستدعاء الملف المختار بالماوس بأمان كامل على الويندوز
+    def pick_file_result(e):
         if e.files:
             path_in.value = e.files.path if hasattr(e.files, 'path') else e.files.path
             error_txt.value = ""
-            await page.update_async()
+            page.update()
 
-    file_picker = ft.FilePicker()
-    file_picker.on_result = pick_file_result
-    file_picker.on_select = pick_file_result
+    file_picker = ft.FilePicker(on_result=pick_file_result)
     page.overlay.append(file_picker)
 
-    # دالة زر فتح مجلدات الكمبيوتر بالماوس بشكل متزامن صحيح
-    async def open_picker_click(e):
-        await file_picker.pick_files(allow_multiple=False, allowed_extensions=["xlsx", "xls"])
-
+    # دالة معالجة ودخول البيانات من ملف الإكسيل
     def start_process(e):
         global res_df
         if not path_in.value:
@@ -57,6 +53,7 @@ async def main(page: ft.Page):
             error_txt.color = "red"
             page.update()
 
+    # دالة البحث والاستعلام بالجدول المنظم الأسود العريض الواضح
     def search_station(e):
         global res_df
         res_container.controls.clear()
@@ -96,6 +93,7 @@ async def main(page: ft.Page):
             res_container.controls.append(ft.Text("❌ عذراً، لم يتم العثور على هذه المحطة!", color="red"))
         page.update()
 
+    # دالة تصدير التقارير مباشرة لسطح المكتب
     def export_data(e):
         global res_df
         if res_df is not None:
@@ -112,6 +110,7 @@ async def main(page: ft.Page):
             error_txt.color = "red"
         page.update()
 
+    # دالة التنقل الهادئ والسلس بين التبويبات العلوية
     def tabs_changed(e):
         if filter_tabs.selected_index == 0:
             view_load.visible = True
@@ -121,18 +120,19 @@ async def main(page: ft.Page):
             view_search.visible = True
         page.update()
 
+    # واجهة تحميل البيانات (تمت إعادة زر ارفاق الملف 📁 بنجاح)
     view_load = ft.Column(
         horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         controls=[
             ft.Text("مرحباً بك في نظام إدارة المحطات", size=22, weight=ft.FontWeight.BOLD, color="black"),
             ft.Text("مشروع DistDebila", size=14, color="grey"),
             ft.Divider(),
-            # ربط الزر بالدالة المتزامنة الحديثة
-            ft.Row([path_in, ft.Button(content=ft.Text("اختر الملف 📁"), on_click=open_picker_click)], alignment=ft.MainAxisAlignment.CENTER),
+            ft.Row([path_in, ft.Button(content=ft.Text("اختر الملف 📁"), on_click=lambda _: file_picker.pick_files(allow_multiple=False, allowed_extensions=["xlsx", "xls"]))], alignment=ft.MainAxisAlignment.CENTER),
             ft.Button(content=ft.Text("الدخول ونظام المعالجة"), on_click=start_process),
         ]
     )
 
+    # واجهة البحث والاستعلام والجدول التمريري بالماوس
     view_search = ft.Column(
         visible=False,
         horizontal_alignment=ft.CrossAxisAlignment.CENTER,
@@ -156,6 +156,7 @@ async def main(page: ft.Page):
         ),
     )
 
+    # تشغيل وعرض الواجهة فوراً بسلام وأمان
     page.add(filter_tabs, ft.Divider(), view_load, view_search, error_txt)
     page.update()
 
