@@ -5,33 +5,34 @@ import flet as ft
 ssl._create_default_https_context = ssl._create_unverified_context
 res_df = None
 
-async def main(page: ft.Page):
+def main(page: ft.Page):
     global res_df
     
-    # 1️⃣ إعدادات الصفحة الأساسية: إجبار الوضع الأبيض الفاتح والتمرير التلقائي بالماوس
     page.title = "نظام المحطات الكهربائية"
     page.theme_mode = ft.ThemeMode.LIGHT
     page.scroll = ft.ScrollMode.AUTO
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     page.window_width, page.window_height = 600, 750
 
-    # عناصر واجهة المستخدم الأساسية
     path_in = ft.TextField(label="مسار ملف الإكسيل المختار", hint_text="سيظهر المسار هنا بعد الاختيار 📁", width=400, read_only=True)
     search_in = ft.TextField(label="أدخل اسم المحطة بدقة", hint_text="مثال: P10", width=250)
     error_txt = ft.Text("", color="red", size=14)
     res_container = ft.Column(horizontal_alignment=ft.CrossAxisAlignment.CENTER)
 
-    # 📁 دالة استقبال واستدعBA الملف المختار بالماوس بأمان كامل
-    async def pick_file_result(e):
+    def pick_file_result(e):
         if e.files:
             path_in.value = e.files.path if hasattr(e.files, 'path') else e.files.path
             error_txt.value = ""
             page.update()
 
-    file_picker = ft.FilePicker(on_result=pick_file_result)
+    # 💡 التعلم من الخطأ: إنشاء الأداة فارغة تماماً لقطع أي تضارب داخل الأقواس
+    file_picker = ft.FilePicker()
+    
+    # إسناد دالة الاستقبال ديناميكياً في أسطر مستقلة لضمان التوافق المطلق
+    file_picker.on_result = pick_file_result
+    file_picker.on_select = pick_file_result
     page.overlay.append(file_picker)
 
-    # دالة معالجة ودخول البيانات من ملف الإكسيل
     def start_process(e):
         global res_df
         if not path_in.value:
@@ -53,7 +54,6 @@ async def main(page: ft.Page):
             error_txt.color = "red"
             page.update()
 
-    # دالة البحث والاستعلام عن محطة بالجدول المنظم الأسود العريض
     def search_station(e):
         global res_df
         res_container.controls.clear()
@@ -93,7 +93,6 @@ async def main(page: ft.Page):
             res_container.controls.append(ft.Text("❌ عذراً، لم يتم العثور على هذه المحطة!", color="red"))
         page.update()
 
-    # دالة تصدير تقارير الإكسيل المصفاة مباشرة لسطح المكتب
     def export_data(e):
         global res_df
         if res_df is not None:
@@ -110,7 +109,15 @@ async def main(page: ft.Page):
             error_txt.color = "red"
         page.update()
 
-    # تصميم واجهة تبويب تحميل البيانات
+    def tabs_changed(e):
+        if filter_tabs.selected_index == 0:
+            view_load.visible = True
+            view_search.visible = False
+        else:
+            view_load.visible = False
+            view_search.visible = True
+        page.update()
+
     view_load = ft.Column(
         horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         controls=[
@@ -122,7 +129,6 @@ async def main(page: ft.Page):
         ]
     )
 
-    # تصميم واجهة تبويب البحث والاستعلام والجدول التمريري
     view_search = ft.Column(
         visible=False,
         horizontal_alignment=ft.CrossAxisAlignment.CENTER,
@@ -136,16 +142,6 @@ async def main(page: ft.Page):
         ]
     )
 
-    # دالة التحكم في التنقل بين التبويبات العلوية بسلاسة
-    def tabs_changed(e):
-        if filter_tabs.selected_index == 0:
-            view_load.visible = True
-            view_search.visible = False
-        else:
-            view_load.visible = False
-            view_search.visible = True
-        page.update()
-
     filter_tabs = ft.Tabs(
         length=2,
         selected_index=0,
@@ -156,7 +152,6 @@ async def main(page: ft.Page):
         ),
     )
 
-    # عرض كافة المكونات المحدثة المنسقة على الشاشة
     page.add(filter_tabs, ft.Divider(), view_load, view_search, error_txt)
     page.update()
 
