@@ -8,14 +8,10 @@ res_df = None
 @ft.control
 class PosteApp(ft.Column):
     def init(self):
-        self.path_in = ft.TextField(label="مسار ملف الإكسيل المختار", hint_text="اختر الملف أو اكتب مساره 📁", width=400, read_only=True)
+        self.path_in = ft.TextField(label="أدخل مسار ملف الإكسيل بدقة", hint_text="مثال: C:/data/file.xlsx", width=450)
         self.search_in = ft.TextField(label="أدخل اسم المحطة بدقة", hint_text="مثال: P10", width=250)
         self.error_txt = ft.Text("", color="red", size=14)
         self.res_container = ft.Column(horizontal_alignment=ft.CrossAxisAlignment.CENTER)
-
-        self.file_picker = ft.FilePicker()
-        self.file_picker.on_result = self.pick_file_result
-        self.file_picker.on_select = self.pick_file_result
 
         self.filter = ft.TabBar(
             scrollable=False,
@@ -35,10 +31,10 @@ class PosteApp(ft.Column):
         self.view_load = ft.Column(
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
             controls=[
-                ft.Text("مرحباً بك في نظام إدارة المحطات", size=22, weight=ft.FontWeight.BOLD, color="black"),
+                ft.Text("مرحباً بك في نظام إدارة المحطات", size=22, weight=ft.FontWeight.BOLD),
                 ft.Text("مشروع DistDebila", size=14, color="grey"),
                 ft.Divider(),
-                ft.Row([self.path_in, ft.ElevatedButton(text="اختر الملف 📁", on_click=lambda _: self.file_picker.pick_files(allow_multiple=False, allowed_extensions=["xlsx", "xls"]))], alignment=ft.MainAxisAlignment.CENTER),
+                self.path_in,
                 ft.Button(content=ft.Text("الدخول ونظام المعالجة"), on_click=self.start_process),
             ]
         )
@@ -47,12 +43,12 @@ class PosteApp(ft.Column):
             visible=False,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
             controls=[
-                ft.Text("استعلام عن محطة كهربائية", size=18, weight="bold", color="black"),
+                ft.Text("استعلام عن محطة كهربائية", size=18, weight="bold"),
                 ft.Row([self.search_in, ft.Button(content=ft.Text("ابحث"), on_click=self.search_station)], alignment=ft.MainAxisAlignment.CENTER),
                 ft.Divider(),
                 ft.Button(content=ft.Text("تصدير التقرير المفلتر كاملاً إلى إكسيل 📄"), on_click=self.export_data),
                 ft.Divider(),
-                ft.Container(content=self.res_container, height=400, scroll=ft.ScrollMode.ALWAYS)
+                self.res_container
             ]
         )
 
@@ -65,16 +61,10 @@ class PosteApp(ft.Column):
             self.error_txt
         ]
 
-    async def pick_file_result(self, e):
-        if e.files:
-            self.path_in.value = e.files.path if hasattr(e.files, 'path') else e.files.path
-            self.error_txt.value = ""
-            self.update()
-
     def start_process(self, e):
         global res_df
         if not self.path_in.value.strip():
-            self.error_txt.value = "⚠️ يرجى اختيار ملف الإكسيل أولاً!"
+            self.error_txt.value = "⚠️ يرجى إدخل مسار ملف الإكسيل أولاً!"
             self.error_txt.color = "red"
             self.update(); return
         try:
@@ -104,7 +94,7 @@ class PosteApp(ft.Column):
         
         match = res_df[res_df["POSTE"].astype(str).str.lower() == self.search_in.value.strip().lower()]
         if not match.empty:
-            row = match.iloc
+            row = match.iloc[0]
             v1_val = row.get("V1", "غير متوفر")
             v2_val = row.get("V2", "غير متوفر")
             v3_val = row.get("V3", "غير متوفر")
@@ -160,7 +150,7 @@ class PosteApp(ft.Column):
 def main(page: ft.Page):
     page.title = "نظام المحطات الكهربائية"
     
-    # التعلم من التنبيه: إجبار البرنامج على الوضع الفاتح الأبيض كلياً وإلغاء سواد الويندوز
+    # 💡 التعديل الوحيد: إجبار واجهة برنامجك على اللون الأبيض لضرب سواد الوضع الليلي في الويندوز
     page.theme_mode = ft.ThemeMode.LIGHT
     
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
@@ -168,7 +158,6 @@ def main(page: ft.Page):
     page.window_height = 750
     
     app = PosteApp()
-    page.overlay.append(app.file_picker)
     page.add(app)
     page.update()
 
