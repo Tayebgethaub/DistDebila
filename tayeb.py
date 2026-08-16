@@ -1,4 +1,5 @@
 import os, ssl
+from dataclasses import field
 import pandas as pd
 import flet as ft
 
@@ -7,29 +8,27 @@ res_df = None
 
 @ft.control
 class PosteApp(ft.Column):
+    # التعلم من الخطأ: استقبال أداة الملفات كعنصر خارجي لمنع تضارب شجرة العناصر
+    file_picker: ft.FilePicker = field(default=None)
+
     def init(self):
         self.path_in = ft.TextField(label="مسار ملف الإكسيل المختار", hint_text="اختر ملف المحطات الكهربائية 📁", width=400, read_only=True)
         self.search_in = ft.TextField(label="أدخل اسم المحطة بدقة", hint_text="مثال: P10", width=250)
         self.error_txt = ft.Text("", color="red", size=14)
         self.res_container = ft.Column(horizontal_alignment=ft.CrossAxisAlignment.CENTER)
 
-        self.file_picker = ft.FilePicker()
-        self.file_picker.on_result = self.pick_file_result
-        self.file_picker.on_select = self.pick_file_result
+        # ربط دالة الاستقبال بالأداة الخارجية الممررة بأمان
+        if self.file_picker:
+            self.file_picker.on_result = self.pick_file_result
+            self.file_picker.on_select = self.pick_file_result
 
         self.filter = ft.TabBar(
             scrollable=False,
-            tabs=[
-                ft.Tab(label="تحميل البيانات"),
-                ft.Tab(label="البحث والتصدير"),
-            ],
+            tabs=[ft.Tab(label="تحميل البيانات"), ft.Tab(label="البحث والتصدير")],
         )
 
         self.filter_tabs = ft.Tabs(
-            length=2,
-            selected_index=0,
-            on_change=self.tabs_changed,
-            content=self.filter,
+            length=2, selected_index=0, on_change=self.tabs_changed, content=self.filter
         )
 
         self.view_load = ft.Column(
@@ -52,19 +51,12 @@ class PosteApp(ft.Column):
                 ft.Divider(),
                 ft.Button(content=ft.Text("تصدير التقرير المفلتر كاملاً إلى إكسيل 📄"), on_click=self.export_data),
                 ft.Divider(),
-                # تم جعل هذا الحاوي مرناً ليتجاوب مع تمرير الصفحة الأساسية بسلاسة
                 self.res_container
             ]
         )
 
         self.width = 600
-        self.controls = [
-            self.filter_tabs,
-            ft.Divider(),
-            self.view_load,
-            self.view_search,
-            self.error_txt
-        ]
+        self.controls = [self.filter_tabs, ft.Divider(), self.view_load, self.view_search, self.error_txt]
 
     async def pick_file_result(self, e):
         if e.files:
@@ -75,54 +67,39 @@ class PosteApp(ft.Column):
     def start_process(self, e):
         global res_df
         if not self.path_in.value.strip():
-            self.error_txt.value = "⚠️ يرجى اختيار ملف الإكسيل أولاً!"
-            self.error_txt.color = "red"
-            self.update(); return
+            self.error_txt.value = "⚠️ يرجى اختيار ملف الإكسيل أولاً!"; self.error_txt.color = "red"; self.update(); return
         try:
             df = pd.read_excel(self.path_in.value.strip())
             df_clean = df.dropna(subset=["POSTE", "I1", "I2", "I3"]).copy()
             df_clean["Total_I"] = df_clean["I1"] + df_clean["I2"] + df_clean["I3"]
             res_df = df_clean.loc[df_clean.groupby("POSTE")["Total_I"].idxmax()].copy()
             res_df["POSTE"] = res_df["POSTE"].replace("853P", "P", regex=True)
-            
             self.error_txt.value = "✅ تم تحميل ومعالجة البيانات بنجاح! انتقل لتبويب البحث."
-            self.error_txt.color = "green"
-            self.update()
+            self.error_txt.color = "green"; self.update()
         except Exception:
-            self.error_txt.value = "❌ خطأ في مسار الملف أو صحة البيانات بداخلة!"
-            self.error_txt.color = "red"
-            self.update()
+            self.error_txt.value = "❌ خطأ في مسار الملف أو صحة البيانات بداخلة!"; self.error_txt.color = "red"; self.update()
 
     def search_station(self, e):
         global res_df
         self.res_container.controls.clear()
         if not self.search_in.value.strip():
-            self.res_container.controls.append(ft.Text("⚠️ يرجى كتابة اسم المحطة أولاً!", color="red"))
-            self.update(); return
+            self.res_container.controls.append(ft.Text("⚠️ يرجى كتابة اسم المحطة أولاً!", color="red")); self.update(); return
         if res_df is None:
-            self.res_container.controls.append(ft.Text("❌ يرجى تحميل ومعالجة البيانات من التبويب الأول أولاً!", color="red"))
-            self.update(); return
+            self.res_container.controls.append(ft.Text("❌ يرجى تحميل ومعالجة البيانات من التبويب الأول أولاً!", color="red")); self.update(); return
         
         match = res_df[res_df["POSTE"].astype(str).str.lower() == self.search_in.value.strip().lower()]
         if not match.empty:
-            row = match.iloc[0]
-            v1_val = row.get("V1", "غير متوفر")
-            v2_val = row.get("V2", "غير متوفر")
-            v3_val = row.get("V3", "غير متوفر")
-            
+            row = match.iloc
             result_table = ft.DataTable(
-                columns=[
-                    ft.DataColumn(ft.Text("الخاصية", color="blue", weight="bold")),
-                    ft.DataColumn(ft.Text("القيمة المسجلة", color="blue", weight="bold")),
-                ],
+                columns=[ft.DataColumn(ft.Text("الخاصية", color="blue", weight="bold")), ft.DataColumn(ft.Text("القيمة المسجلة", color="blue", weight="bold"))],
                 rows=[
                     ft.DataRow(cells=[ft.DataCell(ft.Text("I1", color="black")), ft.DataCell(ft.Text(str(row["I1"]), color="black", weight="bold"))]),
                     ft.DataRow(cells=[ft.DataCell(ft.Text("I2", color="black")), ft.DataCell(ft.Text(str(row["I2"]), color="black", weight="bold"))]),
                     ft.DataRow(cells=[ft.DataCell(ft.Text("I3", color="black")), ft.DataCell(ft.Text(str(row["I3"]), color="black", weight="bold"))]),
                     ft.DataRow(cells=[ft.DataCell(ft.Text("Total I", color="green")), ft.DataCell(ft.Text(str(row["Total_I"]), color="green", weight="bold"))]),
-                    ft.DataRow(cells=[ft.DataCell(ft.Text("V1", color="black")), ft.DataCell(ft.Text(str(v1_val), color="black", weight="bold"))]),
-                    ft.DataRow(cells=[ft.DataCell(ft.Text("V2", color="black")), ft.DataCell(ft.Text(str(v2_val), color="black", weight="bold"))]),
-                    ft.DataRow(cells=[ft.DataCell(ft.Text("V3", color="black")), ft.DataCell(ft.Text(str(v3_val), color="black", weight="bold"))]),
+                    ft.DataRow(cells=[ft.DataCell(ft.Text("V1", color="black")), ft.DataCell(ft.Text(str(row.get("V1", "غير متوفر")), color="black", weight="bold"))]),
+                    ft.DataRow(cells=[ft.DataCell(ft.Text("V2", color="black")), ft.DataCell(ft.Text(str(row.get("V2", "غير متوفر")), color="black", weight="bold"))]),
+                    ft.DataRow(cells=[ft.DataCell(ft.Text("V3", color="black")), ft.DataCell(ft.Text(str(row.get("V3", "غير متوفر")), color="black", weight="bold"))]),
                     ft.DataRow(cells=[ft.DataCell(ft.Text("PUISSANCE", color="purple")), ft.DataCell(ft.Text(str(row.get("PUISSANCE", "غير متوفر")), color="purple", weight="bold"))]),
                     ft.DataRow(cells=[ft.DataCell(ft.Text("DATE", color="purple")), ft.DataCell(ft.Text(str(row.get("DATE", "غير متوفر")), color="purple", weight="bold"))]),
                 ]
@@ -138,39 +115,34 @@ class PosteApp(ft.Column):
             try:
                 desktop_path = os.path.join(os.path.expanduser("~"), "Desktop", "Highest_Current_Stations_Report.xlsx")
                 res_df.to_excel(desktop_path, index=False)
-                self.error_txt.value = "✅ تم تصدير الجدول بالكامل بنجاح إلى سطح المكتب!"
-                self.error_txt.color = "green"
+                self.error_txt.value = "✅ تم تصدير الجدول بالكامل بنجاح إلى سطح المكتب!"; self.error_txt.color = "green"
             except Exception:
-                self.error_txt.value = "❌ فشل التصدير، تأكد من إغلاق ملف التقرير إذا كان مفتوحاً مسبقاً."
-                self.error_txt.color = "red"
+                self.error_txt.value = "❌ فشل التصدير، تأكد من إغلاق ملف التقرير إذا كان مفتوحاً مسبقاً."; self.error_txt.color = "red"
         else:
-            self.error_txt.value = "❌ لا توجد بيانات لتصديرها!"
-            self.error_txt.color = "red"
+            self.error_txt.value = "❌ لا توجد بيانات لتصديرها!"; self.error_txt.color = "red"
         self.update()
 
     def tabs_changed(self, e):
         if self.filter_tabs.selected_index == 0:
-            self.view_load.visible = True
-            self.view_search.visible = False
+            self.view_load.visible = True; self.view_search.visible = False
         else:
-            self.view_load.visible = False
-            self.view_search.visible = True
+            self.view_load.visible = False; self.view_search.visible = True
         self.update()
 
 
 def main(page: ft.Page):
     page.title = "نظام المحطات الكهربائية"
     page.theme_mode = ft.ThemeMode.LIGHT
-    
-    # 💡 حل مشكلة التمرير: تفعيل التمرير التلقائي الذكي على الصفحة الكبيرة لتتحرك مع الماوس بسلاسة
     page.scroll = ft.ScrollMode.AUTO
-    
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
-    page.window_width = 600
-    page.window_height = 750
+    page.window_width, page.window_height = 600, 750
     
-    app = PosteApp()
-    page.overlay.append(app.file_picker)
+    # إنشاء أداة الملفات على مستوى الصفحة أولاً لمنع تعارض شجرة العناصر
+    picker = ft.FilePicker()
+    page.overlay.append(picker)
+    
+    # تمرير الأداة الجاهزة للكلاس بأمان كامل
+    app = PosteApp(file_picker=picker)
     page.add(app)
     page.update()
 
