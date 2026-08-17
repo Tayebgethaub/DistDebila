@@ -2,7 +2,7 @@ import os, ssl
 import pandas as pd
 import flet as ft
 
-# 💡 فكرة أحمد العبقرية: إجبار البرنامج على قراءة محرك الواجهة من مجلد بجانبه بدلاً من الإنترنت
+# 💡 فكرة أحمد العبقرية المحصنة للأوفلاين: قراءة محرك الواجهة من مجلد بجانب البرنامج
 current_dir = os.path.dirname(os.path.abspath(__file__))
 cache_path = os.path.join(current_dir, "flet_cache")
 os.environ["FLET_CLIENT_CACHE_DIR"] = cache_path
@@ -13,29 +13,38 @@ res_df = None
 def main(page: ft.Page):
     global res_df
     
-    # إعدادات الشاشة البيضاء الناصعة ومنع السواد وتفعيل مسطرة الماوس
+    # تثبيت إعدادات الشاشة البيضاء الناصعة ومنع السواد وتفعيل مسطرة الماوس
     page.title = "نظام المحطات الكهربائية"
     page.theme_mode = ft.ThemeMode.LIGHT
     page.scroll = ft.ScrollMode.AUTO
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     page.window_width, page.window_height = 600, 750
 
-    # المكونات الرسومية الأساسية
-    path_in = ft.TextField(label="أدخل مسار ملف الإكسيل بدقة أو الصقه هنا 📁", hint_text="مثال: C:/data/file.xlsx", width=450)
+    # المكونات الرسومية الأساسية (إرجاع وضع read_only للحماية)
+    path_in = ft.TextField(label="مسار ملف الإكسيل المختار", hint_text="سيظهر المسار هنا بعد الاختيار 📁", width=400, read_only=True)
     search_in = ft.TextField(label="أدخل اسم المحطة بدقة", hint_text="مثال: P10", width=250)
     error_txt = ft.Text("", color="red", size=14)
     res_container = ft.Column(horizontal_alignment=ft.CrossAxisAlignment.CENTER)
 
-    # دالة معالجة ودخول البيانات من ملف الإكسيل عبر المسار المكتوب أو الملصق
+    # 📁 دالة استقبال الملف المختار وتفريغه في حقل النص
+    def pick_file_result(e):
+        if e.files:
+            path_in.value = e.files[0].path if hasattr(e.files[0], 'path') else e.files[0].path
+            error_txt.value = ""
+            page.update()
+
+    file_picker = ft.FilePicker(on_result=pick_file_result)
+    page.overlay.append(file_picker)
+
+    # دالة معالجة ودخول البيانات من ملف الإكسيل
     def start_process(e):
         global res_df
-        file_path = path_in.value.strip() if path_in.value else ""
-        if file_path == "":
-            error_txt.value = "⚠️ يرجى إدخال مسار ملف الإكسيل أولاً!"
+        if not path_in.value:
+            error_txt.value = "⚠️ يرجى اختيار ملف الإكسيل أولاً!"
             error_txt.color = "red"
             page.update(); return
         try:
-            df = pd.read_excel(file_path)
+            df = pd.read_excel(path_in.value)
             df_clean = df.dropna(subset=["POSTE", "I1", "I2", "I3"]).copy()
             df_clean["Total_I"] = df_clean["I1"] + df_clean["I2"] + df_clean["I3"]
             res_df = df_clean.loc[df_clean.groupby("POSTE")["Total_I"].idxmax()].copy()
@@ -45,11 +54,11 @@ def main(page: ft.Page):
             error_txt.color = "green"
             page.update()
         except Exception:
-            error_txt.value = "❌ خطأ! تأكد من مسار الملف أو صحة البيانات بداخلة."
+            error_txt.value = "❌ خطأ في مسار الملف أو صحة البيانات بداخلة!"
             error_txt.color = "red"
             page.update()
 
-    # دالة البحث والاستعلام بالجدول المنظم الأسود العريض الواضح
+    # دالة البحث والاستعلام بالجدول المنظم الأسود العريض الواضح بالقوس المضمون
     def search_station(e):
         global res_df
         res_container.controls.clear()
@@ -62,7 +71,7 @@ def main(page: ft.Page):
         
         match = res_df[res_df["POSTE"].astype(str).str.lower() == search_in.value.strip().lower()]
         if not match.empty:
-            row = match.iloc
+            row = match.iloc[0]
             v1_val = row.get("V1", "غير متوفر")
             v2_val = row.get("V2", "غير متوفر")
             v3_val = row.get("V3", "غير متوفر")
@@ -107,7 +116,7 @@ def main(page: ft.Page):
             error_txt.color = "red"
             page.update()
 
-    # دالة التنقل الهادئ والسلس بين التبويبات
+    # دالة التنقل الهادئ والسلس بين التبويبات العلوية
     def tabs_changed(e):
         if filter_tabs.selected_index == 0:
             view_load.visible = True
@@ -117,13 +126,14 @@ def main(page: ft.Page):
             view_search.visible = True
         page.update()
 
+    # واجهة تحميل البيانات (تمت إعادة زر إرفاق الملف 📁 بنجاح فائق)
     view_load = ft.Column(
         horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         controls=[
             ft.Text("مرحباً بك في نظام إدارة المحطات", size=22, weight=ft.FontWeight.BOLD, color="black"),
             ft.Text("مشروع DistDebila", size=14, color="grey"),
             ft.Divider(),
-            path_in,
+            ft.Row([path_in, ft.Button(content=ft.Text("اختر الملف 📁"), on_click=lambda _: file_picker.pick_files(allow_multiple=False, allowed_extensions=["xlsx", "xls"]))], alignment=ft.MainAxisAlignment.CENTER),
             ft.Button(content=ft.Text("الدخول ونظام المعالجة"), on_click=start_process),
         ]
     )
@@ -156,3 +166,4 @@ def main(page: ft.Page):
 
 if __name__ == "__main__":
     ft.run(main)
+
