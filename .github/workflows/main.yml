@@ -26,7 +26,7 @@ jobs:
 
     - name: Build EXE with PyInstaller Clean Standard
       run: |
-        pyinstaller --noconsole --onefile --collect-all flet --collect-all flet_desktop tayeb.py
+        pyinstaller --noconsole --onefile --icon=icon.ico --collect-all flet --collect-all flet_desktop tayeb.py
       # 💡 المفتاح السحري: إجبار جيتهاب على دمج ملفات الواجهة كاملة داخل الـ EXE ليعمل في الجهاز الآخر بدون إنترنت
       env:
         FLET_EMBED_JS_TEMPLATE: "true"
