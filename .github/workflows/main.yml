@@ -18,15 +18,14 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
-        cache: 'pip'
 
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install --no-cache-dir pandas openpyxl flet flet-desktop
 
-    # 💡 التغيير الحاسب والنهائي لعام 2026: استخدام مجمع فليت الرسمي لبناء نسخة أوفلاين كاملة
-    - name: Build Windows EXE via Official Flet Builder Offline
+    # 💡 التطبيق الحقيقي للمستندات الرسمية: استخدام flet build لصناعة ملف EXE مدمج بالكامل أوفلاين
+    - name: Build Windows EXE via Official Flet Builder
       run: |
         flet build windows
 
@@ -35,4 +34,5 @@ jobs:
       with:
         name: tayeb-windows-app
         path: build/windows/tayeb.exe
+
 
