@@ -23,18 +23,16 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install --no-cache-dir pandas openpyxl flet flet-desktop pyinstaller
+        pip install --no-cache-dir pandas openpyxl flet
 
-    # دمج حزم العرض والأصول كاملة داخل ملف الـ EXE ليعمل أوفلاين 100% وبدون إنترنت في أي كمبيوتر آخر
-    - name: Build EXE with PyInstaller Clean Standard Offline
+    # دمج حزم العرض والأصول كاملة لتعمل أوفلاين 100% باستخدام أمر البناء الرسمي الحديث لشركة Flet
+    - name: Build Windows EXE via Official Flet Builder
       run: |
-        pyinstaller --noconsole --onefile --collect-all flet --collect-all flet_desktop tayeb.py
-      env:
-        FLET_EMBED_JS_TEMPLATE: "true"
+        flet build windows
 
     - name: Upload Executable Artifact
       uses: actions/upload-artifact@v4
       with:
         name: tayeb-windows-app
-        path: dist/tayeb.exe
+        path: build/windows/tayeb.exe
 
