@@ -25,20 +25,16 @@ jobs:
         python -m pip install --upgrade pip
         pip install --no-cache-dir pandas openpyxl flet flet-desktop pyinstaller
 
-    # التعديل الحاسم: نأمر بايثون بتحميل حزمة الواجهة السحابية داخل الخادم قبل التجميع ليتم دمجها أوفلاين
-    - name: Pre-download Flet Client for Offline Support
-      run: |
-        python -m flet --version
-
-    - name: Build EXE with PyInstaller Clean Standard
+    # دمج حزم العرض والأصول كاملة داخل ملف الـ EXE ليعمل أوفلاين 100% وبدون إنترنت في أي كمبيوتر آخر
+    - name: Build EXE with PyInstaller Clean Standard Offline
       run: |
         pyinstaller --noconsole --onefile --collect-all flet --collect-all flet_desktop tayeb.py
+      env:
+        FLET_EMBED_JS_TEMPLATE: "true"
 
     - name: Upload Executable Artifact
       uses: actions/upload-artifact@v4
       with:
         name: tayeb-windows-app
         path: dist/tayeb.exe
-
-
 
