@@ -10,7 +10,8 @@ os.environ["FLET_CLIENT_CACHE_DIR"] = cache_path
 ssl._create_default_https_context = ssl._create_unverified_context
 res_df = None
 
-def main(page: ft.Page):
+# تحويل الدالة الرئيسية لتعمل بنظام async الموحد المستقر لعام 2026
+async def main(page: ft.Page):
     global res_df
     
     # تثبيت إعدادات الشاشة البيضاء الناصعة ومنع السواد وتفعيل مسطرة الماوس
@@ -20,29 +21,27 @@ def main(page: ft.Page):
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     page.window_width, page.window_height = 600, 750
 
-    # المكونات الرسومية الأساسية (إرجاع وضع read_only للحماية)
+    # المكونات الرسومية الأساسية
     path_in = ft.TextField(label="مسار ملف الإكسيل المختار", hint_text="سيظهر المسار هنا بعد الاختيار 📁", width=400, read_only=True)
     search_in = ft.TextField(label="أدخل اسم المحطة بدقة", hint_text="مثال: P10", width=250)
     error_txt = ft.Text("", color="red", size=14)
     res_container = ft.Column(horizontal_alignment=ft.CrossAxisAlignment.CENTER)
 
-    # 📁 دالة استقبال الملف المختار وتفريغه في حقل النص
-    def pick_file_result(e):
-        if e.files:
-            path_in.value = e.files[0].path if hasattr(e.files[0], 'path') else e.files[0].path
+    # 📁 دالة النقر المتزامنة الرسمية المحدثة لفتح المجلدات بالماوس بأمان كامل
+    async def handle_pick_files(e: ft.Event[ft.Button]):
+        files = await ft.FilePicker().pick_files(allow_multiple=False, allowed_extensions=["xlsx", "xls"])
+        if files:
+            path_in.value = files.path if isinstance(files, list) else files.path
             error_txt.value = ""
-            page.update()
-
-    file_picker = ft.FilePicker(on_result=pick_file_result)
-    page.overlay.append(file_picker)
+            await page.update()
 
     # دالة معالجة ودخول البيانات من ملف الإكسيل
-    def start_process(e):
+    async def start_process(e):
         global res_df
         if not path_in.value:
             error_txt.value = "⚠️ يرجى اختيار ملف الإكسيل أولاً!"
             error_txt.color = "red"
-            page.update(); return
+            await page.update(); return
         try:
             df = pd.read_excel(path_in.value)
             df_clean = df.dropna(subset=["POSTE", "I1", "I2", "I3"]).copy()
@@ -52,22 +51,22 @@ def main(page: ft.Page):
             
             error_txt.value = "✅ تم تحميل ومعالجة البيانات بنجاح! انتقل لتبويب البحث."
             error_txt.color = "green"
-            page.update()
+            await page.update()
         except Exception:
             error_txt.value = "❌ خطأ في مسار الملف أو صحة البيانات بداخلة!"
             error_txt.color = "red"
-            page.update()
+            await page.update()
 
     # دالة البحث والاستعلام بالجدول المنظم الأسود العريض الواضح بالقوس المضمون
-    def search_station(e):
+    async def search_station(e):
         global res_df
         res_container.controls.clear()
         if not search_in.value.strip():
             res_container.controls.append(ft.Text("⚠️ يرجى كتابة اسم المحطة أولاً!", color="red"))
-            page.update(); return
+            await page.update(); return
         if res_df is None:
             res_container.controls.append(ft.Text("❌ يرجى تحميل ومعالجة البيانات من التبويب الأول أولاً!", color="red"))
-            page.update(); return
+            await page.update(); return
         
         match = res_df[res_df["POSTE"].astype(str).str.lower() == search_in.value.strip().lower()]
         if not match.empty:
@@ -96,10 +95,10 @@ def main(page: ft.Page):
             res_container.controls.append(result_table)
         else:
             res_container.controls.append(ft.Text("❌ عذراً، لم يتم العثور على هذه المحطة!", color="red"))
-        page.update()
+        await page.update()
 
     # دالة تصدير تقارير الإكسيل لسطح المكتب
-    def export_data(e):
+    async def export_data(e):
         global res_df
         if res_df is not None:
             try:
@@ -110,30 +109,30 @@ def main(page: ft.Page):
             except Exception:
                 error_txt.value = "❌ فشل التصدير، تأكد من إغلاق ملف التقرير إذا كان مفتوحاً مسبقاً."
                 error_txt.color = "red"
-            page.update()
+            await page.update()
         else:
             error_txt.value = "❌ لا توجد بيانات لتصديرها!"
             error_txt.color = "red"
-            page.update()
+            await page.update()
 
     # دالة التنقل الهادئ والسلس بين التبويبات العلوية
-    def tabs_changed(e):
+    async def tabs_changed(e):
         if filter_tabs.selected_index == 0:
             view_load.visible = True
             view_search.visible = False
         else:
             view_load.visible = False
             view_search.visible = True
-        page.update()
+        await page.update()
 
-    # واجهة تحميل البيانات (تمت إعادة زر إرفاق الملف 📁 بنجاح فائق)
+    # واجهة تحميل البيانات بلمسة زر الماوس الرسمية لعام 2026
     view_load = ft.Column(
         horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         controls=[
             ft.Text("مرحباً بك في نظام إدارة المحطات", size=22, weight=ft.FontWeight.BOLD, color="black"),
             ft.Text("مشروع DistDebila", size=14, color="grey"),
             ft.Divider(),
-            ft.Row([path_in, ft.Button(content=ft.Text("اختر الملف 📁"), on_click=lambda _: file_picker.pick_files(allow_multiple=False, allowed_extensions=["xlsx", "xls"]))], alignment=ft.MainAxisAlignment.CENTER),
+            ft.Row([path_in, ft.Button(content="اختر الملف 📁", icon=ft.Icons.UPLOAD_FILE, on_click=handle_pick_files)], alignment=ft.MainAxisAlignment.CENTER),
             ft.Button(content=ft.Text("الدخول ونظام المعالجة"), on_click=start_process),
         ]
     )
@@ -162,7 +161,7 @@ def main(page: ft.Page):
     )
 
     page.add(filter_tabs, ft.Divider(), view_load, view_search, error_txt)
-    page.update()
+    await page.update()
 
 if __name__ == "__main__":
     ft.run(main)
