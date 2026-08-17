@@ -1,12 +1,11 @@
-import os, ssl, sys
+import os, ssl
 import pandas as pd
 import flet as ft
 
-# 💡 درس اليوم: حقن وتثبيت مسار مجلد فليت المحمول بجانب البرنامج رغماً عن قيود الويندوز
-current_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
+# 💡 الصيغة القياسية المستقرة لحقن مسار مجلد فليت المحمول بجانب البرنامج بأمان كامل
+current_dir = os.path.dirname(os.path.abspath(__file__))
 cache_path = os.path.join(current_dir, "flet_cache")
 os.environ["FLET_CLIENT_CACHE_DIR"] = cache_path
-os.environ["FLET_EMBED_JS_TEMPLATE"] = "true"
 
 ssl._create_default_https_context = ssl._create_unverified_context
 res_df = None
@@ -14,7 +13,7 @@ res_df = None
 def main(page: ft.Page):
     global res_df
     
-    # تثبيت إعدادات الشاشة البيضاء الناصعة ومنع السواد وتفعيل مسطرة الماوس
+    # تثبيت إعدادات الشاشة البيضاء الناصعة ومنع السواد وتفعيل مسطرة الماوس التمريرية
     page.title = "نظام المحطات الكهربائية"
     page.theme_mode = ft.ThemeMode.LIGHT
     page.scroll = ft.ScrollMode.AUTO
@@ -27,7 +26,7 @@ def main(page: ft.Page):
     error_txt = ft.Text("", color="red", size=14)
     res_container = ft.Column(horizontal_alignment=ft.CrossAxisAlignment.CENTER)
 
-    # 📁 الدالة القياسية العادية (Sync) لاستقبال الملف المختار بالماوس بدون تعارض
+    # 📁 الدالة القياسية العادية (Sync) لاستقبال الملف المختار بالماوس بدون تعارض مسميات
     def pick_file_result(e):
         if e.files:
             path_in.value = e.files.path if isinstance(e.files, list) else e.files.path
@@ -75,7 +74,7 @@ def main(page: ft.Page):
         
         match = res_df[res_df["POSTE"].astype(str).str.lower() == search_in.value.strip().lower()]
         if not match.empty:
-            row = match.iloc
+            row = match.iloc[0]
             v1_val = row.get("V1", "غير متوفر")
             v2_val = row.get("V2", "غير متوفر")
             v3_val = row.get("V3", "غير متوفر")
@@ -130,7 +129,7 @@ def main(page: ft.Page):
             view_search.visible = True
         page.update()
 
-    # واجهة تحميل البيانات بالماوس الفاخرة القياسية
+    # واجهة تحميل البيانات بالماوس الفاخرة القياسية المستقرة
     view_load = ft.Column(
         horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         controls=[
@@ -170,4 +169,3 @@ def main(page: ft.Page):
 
 if __name__ == "__main__":
     ft.run(main)
-
