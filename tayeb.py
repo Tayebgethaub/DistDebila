@@ -1,45 +1,38 @@
 import os, ssl
 import pandas as pd
 import flet as ft
-
-# 💡 الصيغة القياسية المستقرة لحقن مسار مجلد فليت المحمول بجانب البرنامج بأمان كامل
+# 💡 فكرة أحمد العبقرية: قراءة محرك الواجهة محلياً من مجلد بجانب البرنامج للأوفلاين
 current_dir = os.path.dirname(os.path.abspath(__file__))
 cache_path = os.path.join(current_dir, "flet_cache")
 os.environ["FLET_CLIENT_CACHE_DIR"] = cache_path
-
 ssl._create_default_https_context = ssl._create_unverified_context
 res_df = None
 
 def main(page: ft.Page):
     global res_df
     
-    # تثبيت إعدادات الشاشة البيضاء الناصعة ومنع السواد وتفعيل مسطرة الماوس التمريرية
+    # إعدادات الشاشة البيضاء الناصعة ومنع السواد وتفعيل مسطرة الماوس
     page.title = "نظام المحطات الكهربائية"
     page.theme_mode = ft.ThemeMode.LIGHT
     page.scroll = ft.ScrollMode.AUTO
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     page.window_width, page.window_height = 600, 750
 
-    # المكونات الرسومية القياسية المستقرة 100% كما كانت بالأمس تماماً
+    # المكونات الرسومية الأساسية المتوافقة مع أحدث التحديثات
     path_in = ft.TextField(label="مسار ملف الإكسيل المختار", hint_text="سيظهر المسار هنا بعد الاختيار 📁", width=400, read_only=True)
     search_in = ft.TextField(label="أدخل اسم المحطة بدقة", hint_text="مثال: P10", width=250)
     error_txt = ft.Text("", color="red", size=14)
     res_container = ft.Column(horizontal_alignment=ft.CrossAxisAlignment.CENTER)
 
-    # 📁 الدالة القياسية العادية (Sync) لاستقبال الملف المختار بالماوس بدون تعارض مسميات
-    def pick_file_result(e):
-        if e.files:
-            path_in.value = e.files.path if isinstance(e.files, list) else e.files.path
+    # 💡 درس أحمد: دالة متزامنة ذكية تستدعي الفايل بيكر الحديث مباشرة في سطر واحد بدون overlay
+    async def handle_pick_files(e: ft.Event[ft.Button]):
+        files = await ft.FilePicker().pick_files(allow_multiple=False, allowed_extensions=["xlsx", "xls"])
+        if files:
+            # قراءة مسار الملف المختار الأول بالماوس بأمان
+            path_in.value = files[0].path if isinstance(files, list) else files.path
             error_txt.value = ""
             page.update()
 
-    # التثبيت الحاسم للفايل بيكر في أسطر مستقلة لقطع خطأ الـ TypeError للأبد
-    file_picker = ft.FilePicker()
-    file_picker.on_result = pick_file_result
-    file_picker.on_select = pick_file_result
-    page.overlay.append(file_picker)
-
-    # دالة معالجة ودخول البيانات من ملف الإكسيل
     def start_process(e):
         global res_df
         if not path_in.value:
@@ -61,7 +54,6 @@ def main(page: ft.Page):
             error_txt.color = "red"
             page.update()
 
-    # دالة البحث والاستعلام بالجدول المنظم الأسود العريض الواضح بالقوس المضمون
     def search_station(e):
         global res_df
         res_container.controls.clear()
@@ -74,7 +66,7 @@ def main(page: ft.Page):
         
         match = res_df[res_df["POSTE"].astype(str).str.lower() == search_in.value.strip().lower()]
         if not match.empty:
-            row = match.iloc[0]
+            row = match.iloc
             v1_val = row.get("V1", "غير متوفر")
             v2_val = row.get("V2", "غير متوفر")
             v3_val = row.get("V3", "غير متوفر")
@@ -101,7 +93,6 @@ def main(page: ft.Page):
             res_container.controls.append(ft.Text("❌ عذراً، لم يتم العثور على هذه المحطة!", color="red"))
         page.update()
 
-    # دالة تصدير تقارير الإكسيل لسطح المكتب
     def export_data(e):
         global res_df
         if res_df is not None:
@@ -119,7 +110,6 @@ def main(page: ft.Page):
             error_txt.color = "red"
             page.update()
 
-    # دالة التنقل الهادئ والسلس بين التبويبات العلوية
     def tabs_changed(e):
         if filter_tabs.selected_index == 0:
             view_load.visible = True
@@ -129,14 +119,15 @@ def main(page: ft.Page):
             view_search.visible = True
         page.update()
 
-    # واجهة تحميل البيانات بالماوس الفاخرة القياسية المستقرة
+    # واجهة تحميل البيانات المستقرة كلياً
     view_load = ft.Column(
         horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         controls=[
             ft.Text("مرحباً بك في نظام إدارة المحطات", size=22, weight=ft.FontWeight.BOLD, color="black"),
             ft.Text("مشروع DistDebila", size=14, color="grey"),
             ft.Divider(),
-            ft.Row([path_in, ft.Button(content=ft.Text("اختر الملف 📁"), on_click=lambda _: file_picker.pick_files(allow_multiple=False, allowed_extensions=["xlsx", "xls"]))], alignment=ft.MainAxisAlignment.CENTER),
+            # ربط الزر بالدالة المتزامنة الحديثة المستوحاة من كود أحمد العبقري
+            ft.Row([path_in, ft.Button(content="اختر الملف 📁", icon=ft.Icons.UPLOAD_FILE, on_click=handle_pick_files)], alignment=ft.MainAxisAlignment.CENTER),
             ft.Button(content=ft.Text("الدخول ونظام المعالجة"), on_click=start_process),
         ]
     )
