@@ -66,7 +66,7 @@ def main(page: ft.Page):
         
         match = res_df[res_df["POSTE"].astype(str).str.lower() == search_in.value.strip().lower()]
         if not match.empty:
-            row = match.iloc
+            row = match.iloc [0]
             v1_val = row.get("V1", "غير متوفر")
             v2_val = row.get("V2", "غير متوفر")
             v3_val = row.get("V3", "غير متوفر")
