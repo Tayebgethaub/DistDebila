@@ -26,8 +26,8 @@ jobs:
 
     - name: Build EXE with PyInstaller Clean Standard
       run: |
-        pyinstaller --noconsole --onefile --icon=icon.ico --collect-all flet --collect-all flet_desktop tayeb.py
-      # 💡 المفتاح السحري: إجبار جيتهاب على دمج ملفات الواجهة كاملة داخل الـ EXE ليعمل في الجهاز الآخر بدون إنترنت
+        # 🚀 الأمر الكامل والأقوى لدمج الأيقونة، الفلات، والبانداس بالكامل داخل ملف واحد
+        pyinstaller --noconsole --onefile --icon=icon.ico --collect-all flet --collect-all flet_desktop --collect-all pandas --collect-all openpyxl tayeb.py
       env:
         FLET_EMBED_JS_TEMPLATE: "true"
 
@@ -36,6 +36,4 @@ jobs:
       with:
         name: tayeb-windows-app
         path: dist/tayeb.exe
-
-
 
