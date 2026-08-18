@@ -1,10 +1,16 @@
 import os, ssl
 import pandas as pd
 import flet as ft
-# 💡 فكرة أحمد العبقرية: قراءة محرك الواجهة محلياً من مجلد بجانب البرنامج للأوفلاين
+# 💡 السطور الجديدة الخاصة بخطة أحمد للأوفلاين المطلق:
 current_dir = os.path.dirname(os.path.abspath(__file__))
 cache_path = os.path.join(current_dir, "flet_cache")
+
+# 1. إجبار نظام فليت على القراءة المحلية من المجلد الجانبي فقط
 os.environ["FLET_CLIENT_CACHE_DIR"] = cache_path
+
+# 2. اللمسة الحاسمة: نزع ومنع أي محاولة للاتصال بالإنترنت أو تحميل قوالب خارجية
+os.environ["FLET_EMBED_JS_TEMPLATE"] = "true"
+
 ssl._create_default_https_context = ssl._create_unverified_context
 res_df = None
 
@@ -17,7 +23,7 @@ def main(page: ft.Page):
     page.scroll = ft.ScrollMode.AUTO
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     page.window_width, page.window_height = 600, 750
-
+    page.icon = "icon.ico"
     # المكونات الرسومية الأساسية المتوافقة مع أحدث التحديثات
     path_in = ft.TextField(label="مسار ملف الإكسيل المختار", hint_text="سيظهر المسار هنا بعد الاختيار 📁", width=400, read_only=True)
     search_in = ft.TextField(label="أدخل اسم المحطة بدقة", hint_text="مثال: P10", width=250)
