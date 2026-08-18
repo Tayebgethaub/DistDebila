@@ -2,7 +2,7 @@ import os, ssl ,sys
 import pandas as pd
 import flet as ft
 if getattr(sys, 'frozen', False):
-    current_dir = os.path.dirname(os.path.abspath(sys.argv))
+    current_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
 else:
     current_dir = os.path.dirname(os.path.abspath(__file__))
 
