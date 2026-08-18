@@ -1,4 +1,4 @@
-import os, ssl
+import os, ssl ,sys
 import pandas as pd
 import flet as ft
 if getattr(sys, 'frozen', False):
