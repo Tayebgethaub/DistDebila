@@ -1,13 +1,15 @@
 import os, ssl ,sys
 import pandas as pd
 import flet as ft
-if getattr(sys, 'frozen', False):
-    current_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
+current_dir = os.path.dirname(os.path.abspath(sys.executable))
 else:
     current_dir = os.path.dirname(os.path.abspath(__file__))
 
-# ضبط المسار المحمول للمجلد الجانبي
+# ضبط المسار المحمول للمجلد الجانبي الخارجي (flet_cache) الموجود بجانب الـ EXE
 cache_path = os.path.join(current_dir, "flet_cache")
+
+# توجيه بيئة عمل Flet للقراءة من المجلد الخارجي أوفلاين
+os.environ["FLET_APP_ASSETS_DIR"] = cache_path
 os.environ["FLET_CLIENT_CACHE_DIR"] = cache_path
 ssl._create_default_https_context = ssl._create_unverified_context
 res_df = None
