@@ -1,4 +1,4 @@
-name: Build Windows Executable
+name: Build Windows Application
 
 on:
   push:
@@ -11,32 +11,93 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
+      # 1. تحميل المشروع
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    # 💡 التعديل الهندسي المنقذ: تثبيت نسخة خفيفة ومستقرة من numpy لتشغيل التطبيق على الأجهزة القديمة والحديثة دفعة واحدة
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install "numpy<2.0.0" pandas openpyxl flet flet-desktop pyinstaller
+      # 2. تثبيت Python
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
-    - name: Build EXE with PyInstaller Clean Standard
-      run: |
-        # 🚀 الأمر الكامل والأقوى لدمج الأيقونة، الفلات، والبانداس بالكامل داخل ملف واحد
-        pyinstaller --noconsole --onefile --icon=icon.ico --collect-all flet --collect-all flet_desktop --collect-all pandas --collect-all openpyxl tayeb.py
-      env:
-        FLET_EMBED_JS_TEMPLATE: "true"
+      # 3. تثبيت Flet
+      - name: Install Flet
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "flet==0.86.4"
 
-    - name: Upload Executable Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: tayeb-windows-app
-        path: dist/tayeb.exe
+      # 4. إنشاء requirements.txt
+      - name: Create requirements.txt
+        shell: pwsh
+        run: |
+          @"
+          flet==0.86.4
+          pandas==2.2.3
+          numpy<2.0.0
+          openpyxl==3.1.5
+          "@ | Set-Content requirements.txt
+
+      # 5. التأكد من وجود الأيقونة
+      - name: Check icon
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "icon.ico")) {
+            Write-Error "icon.ico was not found in the project root."
+            exit 1
+          }
+
+          Write-Host "icon.ico found successfully."
+
+      # 6. تنظيف أي Build قديم
+      - name: Clean Flet build
+        shell: pwsh
+        run: |
+          flet clean
+
+      # 7. بناء تطبيق Windows
+      - name: Build Windows application
+        shell: pwsh
+        run: |
+          flet build windows `
+            --python-version 3.12 `
+            --module-name tayeb.py `
+            --product "نظام المحطات الكهربائية" `
+            --artifact "tayeb" `
+            --icon "icon.ico" `
+            --output "build/windows"
+
+      # 8. عرض محتويات مجلد البناء
+      - name: Inspect build
+        shell: pwsh
+        run: |
+          Write-Host "===== BUILD CONTENT ====="
+          Get-ChildItem -Path "build/windows" -Recurse
+
+      # 9. إنشاء ZIP واحد للتوزيع
+      - name: Create distribution ZIP
+        shell: pwsh
+        run: |
+          if (Test-Path "tayeb-windows.zip") {
+            Remove-Item "tayeb-windows.zip" -Force
+          }
+
+          Compress-Archive `
+            -Path "build/windows/*" `
+            -DestinationPath "tayeb-windows.zip" `
+            -CompressionLevel Optimal
+
+          Write-Host "ZIP created successfully."
+
+      # 10. رفع ZIP
+      - name: Upload final ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: tayeb-windows-offline
+          path: tayeb-windows.zip
+          if-no-files-found: error
 
 
 
