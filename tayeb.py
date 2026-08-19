@@ -17,6 +17,7 @@ os.environ["FLET_CLIENT_CACHE_DIR"] = cache_path
 os.environ["FLET_SERVER_PORT"] = "0"              # إجبار السيرفر الداخلي على اختيار منفذ محلي عشوائي مغلق
 os.environ["FLET_FORCE_LOCAL_ASSETS"] = "true"    # منع تحميل أي مكونات أو أيقونات من الإنترنت نهائياً
 os.environ["NO_PROXY"] = "*"                       # إلغاء أي محاولات للاتصال بالشبكة الخارجية
+os.environ["FLET_VIEW_PATH"] = cache_path
 
 res_df = None
 
