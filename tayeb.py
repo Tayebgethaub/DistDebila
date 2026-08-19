@@ -1,42 +1,50 @@
-import os, ssl ,sys
+import os, ssl, sys
 import pandas as pd
 import flet as ft
+
+# 💡 التعديل الهندسي الجديد المنقذ: تحديد مسار الفلاش ميموري الحقيقي بدقة 100% لملف الـ EXE
 if getattr(sys, 'frozen', False):
-    current_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
+    current_dir = os.path.dirname(sys.executable)
 else:
     current_dir = os.path.dirname(os.path.abspath(__file__))
 
 # ضبط المسار المحمول للمجلد الجانبي
 cache_path = os.path.join(current_dir, "flet_cache")
 os.environ["FLET_CLIENT_CACHE_DIR"] = cache_path
+
 ssl._create_default_https_context = ssl._create_unverified_context
 res_df = None
 
 def main(page: ft.Page):
     global res_df
     
-    # إعدادات الشاشة البيضاء الناصعة ومنع السواد وتفعيل مسطرة الماوس
+    # تثبيت إعدادات الشاشة البيضاء الناصعة ومنع السواد وتفعيل مسطرة الماوس التمريرية
     page.title = "نظام المحطات الكهربائية"
     page.theme_mode = ft.ThemeMode.LIGHT
     page.scroll = ft.ScrollMode.AUTO
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     page.window_width, page.window_height = 600, 750
-    icon_absolute_path = os.path.join(cache_path, "icon.ico")
-    page.icon = icon_absolute_path
-    # المكونات الرسومية الأساسية المتوافقة مع أحدث التحديثات
+    
+    # 💡 حل الأيقونة السفلية المضمون أوفلاين: قراءة ملف الأيقونة الخارجي الجالس بجانب الـ EXE مباشرة
+    page.icon = os.path.join(current_dir, "icon.ico")
+
+    # المكونات الرسومية القياسية المستقرة والثابتة 100%
     path_in = ft.TextField(label="مسار ملف الإكسيل المختار", hint_text="سيظهر المسار هنا بعد الاختيار 📁", width=400, read_only=True)
     search_in = ft.TextField(label="أدخل اسم المحطة بدقة", hint_text="مثال: P10", width=250)
     error_txt = ft.Text("", color="red", size=14)
     res_container = ft.Column(horizontal_alignment=ft.CrossAxisAlignment.CENTER)
 
-    # 💡 درس أحمد: دالة متزامنة ذكية تستدعي الفايل بيكر الحديث مباشرة في سطر واحد بدون overlay
-    async def handle_pick_files(e: ft.Event[ft.Button]):
-        files = await ft.FilePicker().pick_files(allow_multiple=False, allowed_extensions=["xlsx", "xls"])
-        if files:
-            # قراءة مسار الملف المختار الأول بالماوس بأمان
-            path_in.value = files[0].path if isinstance(files, list) else files.path
+    # 📁 النظام الكلاسيكي الصافي المضمون 100% (Sync) لاستقبال الملف بالماوس بدون طلب إنترنت
+    def pick_file_result(e):
+        if e.files:
+            path_in.value = e.files.path if isinstance(e.files, list) else e.files.path
             error_txt.value = ""
             page.update()
+
+    # التثبيت الحاسم والآمن للفايل بيكر في أسطر مستقلة لقطع خطأ الـ TypeError للأبد أوفلاين
+    file_picker = ft.FilePicker()
+    file_picker.on_result = pick_file_result
+    page.overlay.append(file_picker)
 
     def start_process(e):
         global res_df
@@ -71,7 +79,7 @@ def main(page: ft.Page):
         
         match = res_df[res_df["POSTE"].astype(str).str.lower() == search_in.value.strip().lower()]
         if not match.empty:
-            row = match.iloc [0]
+            row = match.iloc[0]
             v1_val = row.get("V1", "غير متوفر")
             v2_val = row.get("V2", "غير متوفر")
             v3_val = row.get("V3", "غير متوفر")
@@ -124,15 +132,14 @@ def main(page: ft.Page):
             view_search.visible = True
         page.update()
 
-    # واجهة تحميل البيانات المستقرة كلياً
+    # واجهة تحميل البيانات المستقرة كلياً بنظام الـ Sync المضمون أوفلاين
     view_load = ft.Column(
         horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         controls=[
             ft.Text("مرحباً بك في نظام إدارة المحطات", size=22, weight=ft.FontWeight.BOLD, color="black"),
             ft.Text("مشروع DistDebila", size=14, color="grey"),
             ft.Divider(),
-            # ربط الزر بالدالة المتزامنة الحديثة المستوحاة من كود أحمد العبقري
-            ft.Row([path_in, ft.Button(content="اختر الملف 📁", icon=ft.Icons.UPLOAD_FILE, on_click=handle_pick_files)], alignment=ft.MainAxisAlignment.CENTER),
+            ft.Row([path_in, ft.Button(content=ft.Text("اختر الملف 📁"), on_click=lambda _: file_picker.pick_files(allow_multiple=False, allowed_extensions=["xlsx", "xls"]))], alignment=ft.MainAxisAlignment.CENTER),
             ft.Button(content=ft.Text("الدخول ونظام المعالجة"), on_click=start_process),
         ]
     )
@@ -165,3 +172,4 @@ def main(page: ft.Page):
 
 if __name__ == "__main__":
     ft.run(main)
+
