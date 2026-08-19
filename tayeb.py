@@ -1,18 +1,25 @@
-import os, ssl ,sys
+import os, sys
 import pandas as pd
 import flet as ft
-current_dir = os.path.dirname(os.path.abspath(sys.executable))
+
+# 1. الحل الحاسم لتجنب مشكلة sys.argv: استخدام sys.executable الصارم للوصول للمجلد الخارجي
+if getattr(sys, 'frozen', False):
+    current_dir = os.path.dirname(os.path.abspath(sys.executable))
 else:
     current_dir = os.path.dirname(os.path.abspath(__file__))
 
-# ضبط المسار المحمول للمجلد الجانبي الخارجي (flet_cache) الموجود بجانب الـ EXE
+# ضبط مسار مجلد الكاش الخارجي بجانب الـ EXE
 cache_path = os.path.join(current_dir, "flet_cache")
 
-# توجيه بيئة عمل Flet للقراءة من المجلد الخارجي أوفلاين
+# 🛠️ خطة أحمد الكبرى: عزل الإنترنت كاملاً وإجبار المحرك على الاعتماد 100% على الكاش المحلي
 os.environ["FLET_APP_ASSETS_DIR"] = cache_path
 os.environ["FLET_CLIENT_CACHE_DIR"] = cache_path
-ssl._create_default_https_context = ssl._create_unverified_context
+os.environ["FLET_SERVER_PORT"] = "0"              # إجبار السيرفر الداخلي على اختيار منفذ محلي عشوائي مغلق
+os.environ["FLET_FORCE_LOCAL_ASSETS"] = "true"    # منع تحميل أي مكونات أو أيقونات من الإنترنت نهائياً
+os.environ["NO_PROXY"] = "*"                       # إلغاء أي محاولات للاتصال بالشبكة الخارجية
+
 res_df = None
+
 
 def main(page: ft.Page):
     global res_df
