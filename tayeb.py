@@ -4,14 +4,13 @@ import pandas as pd
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 
-# 💡 الشفرة السرية لإجبار الويندوز على إظهار الأيقونة في الشريط السفلي (Taskbar)
+# الشفرة السرية لربط الأيقونة بالشريط السفلي للويندوز
 if sys.platform == "win32":
     import ctypes
-    # تعريف معرف تطبيق فريد خاص بمشروع أحمد ليفهمه نظام الويندوز كبرنامج مستقل
     my_app_id = "distdebila.stationmanager.tayeb.1.0"
     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(my_app_id)
 
-# تحديد المجلد الرئيسي للتطبيق بأمان للعمل أوفلاين كلياً وبسرعة صاروخية
+# تحديد المجلد الرئيسي للتطبيق بأمان
 if getattr(sys, 'frozen', False):
     current_dir = os.path.dirname(os.path.abspath(sys.executable))
 else:
@@ -19,7 +18,7 @@ else:
 
 res_df = None
 
-# دالة اختيار ملف الإكسيل
+# دالة اختيار ملف الإكسيل بالماوس
 def handle_pick_files():
     file_path = filedialog.askopenfilename(
         title="اختر ملف الإكسيل للمحطات",
@@ -29,7 +28,7 @@ def handle_pick_files():
         path_in_var.set(file_path)
         error_lbl.config(text="")
 
-# دالة معالجة البيانات الأصلية النظيفة الخاصة بمشروعك
+# دالة معالجة البيانات الخارقة والخفيفة جداً تنتهي في لمح البصر
 def start_process():
     global res_df
     if not path_in_var.get():
@@ -39,14 +38,16 @@ def start_process():
         df = pd.read_excel(path_in_var.get())
         df_clean = df.dropna(subset=["POSTE", "I1", "I2", "I3"]).copy()
         df_clean["Total_I"] = df_clean["I1"] + df_clean["I2"] + df_clean["I3"]
-        res_df = df_clean.loc[df_clean.groupby("POSTE")["Total_I"].idxmax()].copy()
+        
+        df_sorted = df_clean.sort_values("Total_I", ascending=False)
+        res_df = df_sorted.drop_duplicates(subset=["POSTE"]).copy()
         res_df["POSTE"] = res_df["POSTE"].astype(str).str.replace("853P", "P", regex=True)
         
         error_lbl.config(text="✅ تم تحميل ومعالجة البيانات بنجاح! انتقل لتبويب البحث.", fg="green")
     except Exception:
         error_lbl.config(text="❌ خطأ في مسار الملف أو صحة البيانات بداخلة!", fg="red")
 
-# دالة البحث المتقدم وعرض النتائج مع حساب التكلفة المدمج بالماوس
+# 🚀 دالة البحث المعدّلة والمضمونة 100% بعد إصلاح ثغرة iloc[0]
 def search_station():
     global res_df
     for item in tree.get_children():
@@ -62,12 +63,13 @@ def search_station():
     
     match = res_df[res_df["POSTE"].astype(str).str.lower() == query.lower()]
     if not match.empty:
-        row = match.iloc
+        # 💡 الإصلاح المنقذ: أضفنا [0] لتقرأ بايثون السطر المختار بسلام وبدون تجمّد
+        row = match.iloc[0]
         v1_val = row.get("V1", "غير متوفر")
         v2_val = row.get("V2", "غير متوفر")
         v3_val = row.get("V3", "غير متوفر")
         
-        # حسبة التكلفة الذكية بناءً على الاستطاعة
+        # حسبة التكلفة السريعة بناءً على الاستطاعة
         puissance_val = row.get("PUISSANCE", 0)
         try:
             cost_calc = round(float(puissance_val) * 4.5, 2) if str(puissance_val).replace('.','',1).isdigit() else "غير متوفر للتحليل"
@@ -91,7 +93,7 @@ def search_station():
     else:
         messagebox.showinfo("نتيجة", "❌ عذراً، لم يتم العثور على هذه المحطة!")
 
-# دالة تصدير البيانات إلى ملف إكسيل جديد على سطح المكتب
+# دالة التصدير الفورية
 def export_data():
     global res_df
     if res_df is not None:
@@ -108,13 +110,12 @@ def on_tab_change(event):
     if notebook.index(notebook.select()) == 0:
         error_lbl.config(text="")
 
-# --- بناء الواجهة الرسومية الناصعة والخفيفة جداً (Tkinter) ---
+# --- بناء الواجهة الرسومية الناصعة (Tkinter) ---
 root = tk.Tk()
 root.title("نظام المحطات الكهربائية - مشروع DistDebila")
 root.geometry("600x700")
 root.configure(bg="#f5f5f5")
 
-# قراءة الأيقونة مباشرة من داخل ملف الـ EXE عند التشغيل أوفلاين
 icon_path = os.path.join(current_dir, "icon.ico")
 if os.path.exists(icon_path):
     root.iconbitmap(icon_path)
