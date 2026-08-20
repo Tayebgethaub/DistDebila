@@ -26,11 +26,17 @@ jobs:
 
     - name: Build EXE with PyInstaller Clean Standard
       run: |
-        # حرق سريع وخفيف جداً لملف واحد بدون كاش وبدون ثقل
-        pyinstaller --noconsole --onefile --icon=icon.ico --collect-all pandas --collect-all openpyxl tayeb.py
+        # 🚀 سر السرعة: التجميع كمجلد كامل (--onedir) ليلغي وقت فك الضغط ويفتح البرنامج فوراً بنقرة واحدة!
+        pyinstaller --noconsole --onedir --icon=icon.ico tayeb.py
+
+    # 📦 ضغط المجلد بالكامل في ملف ZIP واحد لسهولة النقل والشحن لصديقك
+    - name: Zip Artifact Folder
+      run: |
+        powershell Compress-Archive -Path dist/tayeb/* -DestinationPath dist/tayeb-windows-app.zip
 
     - name: Upload Executable Artifact
       uses: actions/upload-artifact@v4
       with:
         name: tayeb-windows-app
-        path: dist/tayeb.exe
+        path: dist/tayeb-windows-app.zip
+
