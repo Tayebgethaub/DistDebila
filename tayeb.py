@@ -4,7 +4,14 @@ import pandas as pd
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 
-# تحديد المجلد الرئيسي للتطبيق بأمان للعمل أوفلاين كلياً
+# 💡 الشفرة السرية لإجبار الويندوز على إظهار الأيقونة في الشريط السفلي (Taskbar)
+if sys.platform == "win32":
+    import ctypes
+    # تعريف معرف تطبيق فريد خاص بمشروع أحمد ليفهمه نظام الويندوز كبرنامج مستقل
+    my_app_id = "distdebila.stationmanager.tayeb.1.0"
+    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(my_app_id)
+
+# تحديد المجلد الرئيسي للتطبيق بأمان للعمل أوفلاين كلياً وبسرعة صاروخية
 if getattr(sys, 'frozen', False):
     current_dir = os.path.dirname(os.path.abspath(sys.executable))
 else:
@@ -22,7 +29,7 @@ def handle_pick_files():
         path_in_var.set(file_path)
         error_lbl.config(text="")
 
-# دالة معالجة البيانات الأصلية الخاصة بك
+# دالة معالجة البيانات الأصلية النظيفة الخاصة بمشروعك
 def start_process():
     global res_df
     if not path_in_var.get():
@@ -39,7 +46,7 @@ def start_process():
     except Exception:
         error_lbl.config(text="❌ خطأ في مسار الملف أو صحة البيانات بداخلة!", fg="red")
 
-# دالة البحث المتقدم وعرض النتائج داخل جدول منظم
+# دالة البحث المتقدم وعرض النتائج مع حساب التكلفة المدمج بالماوس
 def search_station():
     global res_df
     for item in tree.get_children():
@@ -55,11 +62,18 @@ def search_station():
     
     match = res_df[res_df["POSTE"].astype(str).str.lower() == query.lower()]
     if not match.empty:
-        row = match.iloc[0]
+        row = match.iloc
         v1_val = row.get("V1", "غير متوفر")
         v2_val = row.get("V2", "غير متوفر")
         v3_val = row.get("V3", "غير متوفر")
         
+        # حسبة التكلفة الذكية بناءً على الاستطاعة
+        puissance_val = row.get("PUISSANCE", 0)
+        try:
+            cost_calc = round(float(puissance_val) * 4.5, 2) if str(puissance_val).replace('.','',1).isdigit() else "غير متوفر للتحليل"
+        except Exception:
+            cost_calc = "خطأ في الحساب"
+
         properties = [
             ("I1", row.get("I1", "غير متوفر")),
             ("I2", row.get("I2", "غير متوفر")),
@@ -68,7 +82,8 @@ def search_station():
             ("V1", v1_val),
             ("V2", v2_val),
             ("V3", v3_val),
-            ("PUISSANCE", row.get("PUISSANCE", "غير متوفر")),
+            ("PUISSANCE (الاستطاعة)", puissance_val),
+            ("COST (التكلفة التقديرية)", cost_calc),
             ("DATE", row.get("DATE", "غير متوفر"))
         ]
         for prop, val in properties:
@@ -85,27 +100,25 @@ def export_data():
             res_df.to_excel(desktop_path, index=False)
             error_lbl.config(text="✅ تم تصدير الجدول بالكامل بنجاح إلى سطح المكتب!", fg="green")
         except Exception:
-            error_lbl.config(text="❌ فشل Tصدير التقرير، تأكد من إغلاقه إذا كان مفتوحاً مسبقاً.", fg="red")
+            error_lbl.config(text="❌ فشل التصدير، تأكد من إغلاق ملف التقرير إذا كان مفتوحاً مسبقاً.", fg="red")
     else:
         error_lbl.config(text="❌ لا توجد بيانات لتصديرها!", fg="red")
 
-# تنظيف الرسائل عند تغيير التبويبات بالماوس
 def on_tab_change(event):
     if notebook.index(notebook.select()) == 0:
         error_lbl.config(text="")
 
-# --- بناء الواجهة الرسومية الناصعة (Tkinter) ---
+# --- بناء الواجهة الرسومية الناصعة والخفيفة جداً (Tkinter) ---
 root = tk.Tk()
 root.title("نظام المحطات الكهربائية - مشروع DistDebila")
 root.geometry("600x700")
 root.configure(bg="#f5f5f5")
 
-# قراءة الأيقونة من المجلد الرئيسي مباشرة
+# قراءة الأيقونة مباشرة من داخل ملف الـ EXE عند التشغيل أوفلاين
 icon_path = os.path.join(current_dir, "icon.ico")
 if os.path.exists(icon_path):
     root.iconbitmap(icon_path)
 
-# نظام التبويبات الاحترافي
 notebook = ttk.Notebook(root)
 notebook.pack(pady=10, fill="both", expand=True)
 notebook.bind("<<NotebookTabChanged>>", on_tab_change)
@@ -153,7 +166,7 @@ btn_search.pack(side="left")
 tree_frame = tk.Frame(tab2)
 tree_frame.pack(pady=15, fill="both", expand=True, padx=20)
 
-tree = ttk.Treeview(tree_frame, columns=("الخاصية", "القيمة المسجلة"), show="headings", height=10)
+tree = ttk.Treeview(tree_frame, columns=("الخاصية", "القيمة المسجلة"), show="headings", height=11)
 tree.heading("الخاصية", text="الخاصية")
 tree.heading("القيمة المسجلة", text="القيمة المسجلة")
 tree.column("الخاصية", anchor="center", width=150)
@@ -163,7 +176,9 @@ tree.pack(fill="both", expand=True)
 btn_export = tk.Button(tab2, text="تصدير التقرير المفلتر كاملاً إلى إكسيل 📄", command=export_data, font=("Arial", 11, "bold"), bg="#9C27B0", fg="white", bd=0, padx=15, pady=8)
 btn_export.pack(pady=20)
 
-root.mainloop()
+if __name__ == "__main__":
+    root.mainloop()
+
 
 
 
