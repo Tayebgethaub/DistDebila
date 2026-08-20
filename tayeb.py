@@ -85,7 +85,7 @@ def search_station():
             ("V2", v2_val),
             ("V3", v3_val),
             ("PUISSANCE (الاستطاعة)", puissance_val),
-            ("COST (التكلفة التقديرية)", cost_calc),
+           
             ("DATE", row.get("DATE", "غير متوفر"))
         ]
         for prop, val in properties:
