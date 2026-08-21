@@ -22,14 +22,15 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install "numpy<2.0.0" pandas openpyxl pyinstaller
+        # تثبيت كافة المكتبات ومنها matplotlib الضرورية للرسم البياني أوفلاين
+        pip install "numpy<2.0.0" pandas openpyxl matplotlib pyinstaller
 
     - name: Build EXE with PyInstaller Clean Standard
       run: |
-        # 🚀 سر السرعة: التجميع كمجلد كامل (--onedir) ليلغي وقت فك الضغط ويفتح البرنامج فوراً بنقرة واحدة!
+        # استخدام الاسم الرسمي للملف المرفوع على جيت هاب (tayeb.py)
         pyinstaller --noconsole --onedir --icon=icon.ico tayeb.py
 
-    # 📦 ضغط المجلد بالكامل في ملف ZIP واحد لسهولة النقل والشحن لصديقك
+    # ضغط المجلد الناتج بالكامل لسهولة النقل والاستخدام على الويندوز
     - name: Zip Artifact Folder
       run: |
         powershell Compress-Archive -Path dist/tayeb/* -DestinationPath dist/tayeb-windows-app.zip
@@ -39,4 +40,3 @@ jobs:
       with:
         name: tayeb-windows-app
         path: dist/tayeb-windows-app.zip
-
