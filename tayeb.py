@@ -6,13 +6,11 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 # مسار التطبيق والبيانات
 curr_dir = os.path.dirname(os.path.abspath(sys.executable)) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))
 res_df, df_clean = None, None
-file_path="/Users/ahmad/Desktop/BORGRAM DISTRIC/Charge BT JUILLET 2026.xlsx"
 
 def handle_pick_files():
     p = path_in_var.get().strip()
     if p and os.path.exists(p): return error_lbl.config(text="✅ تم اعتماد المسار اليدوي!", fg="green")
     path = filedialog.askopenfilename(title="اختر ملف الإكسيل", filetypes=[("Excel files", "*.xlsx *.xls")])
-    path="/Users/ahmad/Desktop/BORGRAM DISTRIC/Charge BT JUILLET 2026.xlsx"
 
     if path: path_in_var.set(path); 
 
