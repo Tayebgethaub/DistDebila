@@ -1,184 +1,134 @@
-import os
-import sys
-import pandas as pd
-import tkinter as tk
+import os, sys, pandas as pd, tkinter as tk
 from tkinter import ttk, messagebox, filedialog
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
-# الشفرة السرية لربط الأيقونة بالشريط السفلي للويندوز
-if sys.platform == "win32":
-    import ctypes
-    my_app_id = "distdebila.stationmanager.tayeb.1.0"
-    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(my_app_id)
+# مسار التطبيق والبيانات
+curr_dir = os.path.dirname(os.path.abspath(sys.executable)) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))
+res_df, df_clean = None, None
+file_path="/Users/ahmad/Desktop/BORGRAM DISTRIC/Charge BT JUILLET 2026.xlsx"
 
-# تحديد المجلد الرئيسي للتطبيق بأمان
-if getattr(sys, 'frozen', False):
-    current_dir = os.path.dirname(os.path.abspath(sys.executable))
-else:
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-
-res_df = None
-
-# دالة اختيار ملف الإكسيل بالماوس
 def handle_pick_files():
-    file_path = filedialog.askopenfilename(
-        title="اختر ملف الإكسيل للمحطات",
-        filetypes=[("Excel files", "*.xlsx *.xls")]
-    )
-    if file_path:
-        path_in_var.set(file_path)
-        error_lbl.config(text="")
+    p = path_in_var.get().strip()
+    if p and os.path.exists(p): return error_lbl.config(text="✅ تم اعتماد المسار اليدوي!", fg="green")
+    path = filedialog.askopenfilename(title="اختر ملف الإكسيل", filetypes=[("Excel files", "*.xlsx *.xls")])
+    path="/Users/ahmad/Desktop/BORGRAM DISTRIC/Charge BT JUILLET 2026.xlsx"
 
-# دالة معالجة البيانات الخارقة والخفيفة جداً تنتهي في لمح البصر
+    if path: path_in_var.set(path); 
+
+
+    error_lbl.config(text="")
+
 def start_process():
-    global res_df
-    if not path_in_var.get():
-        error_lbl.config(text="⚠️ يرجى اختيار ملف الإكسيل أولاً!", fg="red")
-        return
+    global res_df, df_clean
+    p = path_in_var.get().strip()
+    if not p or not os.path.exists(p): return error_lbl.config(text="❌ المسار خاطئ أو فارغ!", fg="red")
     try:
-        df = pd.read_excel(path_in_var.get())
-        df_clean = df.dropna(subset=["POSTE", "I1", "I2", "I3"]).copy()
+        df_clean = pd.read_excel(p).dropna(subset=["POSTE", "I1", "I2", "I3"]).copy()
+        df_clean["POSTE"] = df_clean["POSTE"].astype(str).str.replace("853P", "P", regex=True)
         df_clean["Total_I"] = df_clean["I1"] + df_clean["I2"] + df_clean["I3"]
-        
-        df_sorted = df_clean.sort_values("Total_I", ascending=False)
-        res_df = df_sorted.drop_duplicates(subset=["POSTE"]).copy()
-        res_df["POSTE"] = res_df["POSTE"].astype(str).str.replace("853P", "P", regex=True)
-        
-        error_lbl.config(text="✅ تم تحميل ومعالجة البيانات بنجاح! انتقل لتبويب البحث.", fg="green")
-    except Exception:
-        error_lbl.config(text="❌ خطأ في مسار الملف أو صحة البيانات بداخلة!", fg="red")
+        res_df = df_clean.loc[df_clean.groupby("POSTE")["Total_I"].idxmax()].copy()
+        error_lbl.config(text="✅ تم تحميل ومعالجة البيانات بنجاح!", fg="green")
+    except: error_lbl.config(text="❌ خطأ في بنية بيانات الملف!", fg="red")
 
-# 🚀 دالة البحث المعدّلة والمضمونة 100% بعد إصلاح ثغرة iloc[0]
 def search_station():
-    global res_df
-    for item in tree.get_children():
-        tree.delete(item)
-        
-    query = search_in_var.get().strip()
-    if not query:
-        messagebox.showwarning("تنبيه", "⚠️ يرجى كتابة اسم المحطة أولاً!")
-        return
-    if res_df is None:
-        messagebox.showerror("خطأ", "❌ يرجى تحميل ومعالجة البيانات من التبويب الأول أولاً!")
-        return
-    
-    match = res_df[res_df["POSTE"].astype(str).str.lower() == query.lower()]
+    for item in tree.get_children(): tree.delete(item)
+    q = search_in_var.get().strip().lower()
+    if not q or res_df is None: return messagebox.showerror("خطأ", "تأكد من كتابة المحطة ومعالجة الملف!")
+    match = res_df[res_df["POSTE"].astype(str).str.lower() == q]
     if not match.empty:
-        # 💡 الإصلاح المنقذ: أضفنا [0] لتقرأ بايثون السطر المختار بسلام وبدون تجمّد
-        row = match.iloc[0]
-        v1_val = row.get("V1", "غير متوفر")
-        v2_val = row.get("V2", "غير متوفر")
-        v3_val = row.get("V3", "غير متوفر")
+        r = match.iloc[0] # تأكيد جلب السطر الأول بدقة
         
-        # حسبة التكلفة السريعة بناءً على الاستطاعة
-        puissance_val = row.get("PUISSANCE", 0)
-        try:
-            cost_calc = round(float(puissance_val) * 4.5, 2) if str(puissance_val).replace('.','',1).isdigit() else "غير متوفر للتحليل"
-        except Exception:
-            cost_calc = "خطأ في الحساب"
-
-        properties = [
-            ("I1", row.get("I1", "غير متوفر")),
-            ("I2", row.get("I2", "غير متوفر")),
-            ("I3", row.get("I3", "غير متوفر")),
-            ("Total I", row.get("Total_I", "غير متوفر")),
-            ("V1", v1_val),
-            ("V2", v2_val),
-            ("V3", v3_val),
-            ("PUISSANCE (الاستطاعة)", puissance_val),
-           
-            ("DATE", row.get("DATE", "غير متوفر"))
+        # جلب القيمة الأصلية للمقارنة الحسابية
+        taux_val = r.get('taux de charge\n(%)')
+        
+        # دمج كل الخصائص في قائمة واحدة لتسهيل التلوين
+        props = [
+            ("I1", f"{int(r.get('I1'))}  A"),
+            ("I2", f"{int(r.get('I2'))}  A"),
+            ("I3", f"{int(r.get('I3'))}  A"),
+            ("Total I", f"{int(r.get('Total_I'))}  A"), 
+            ("V1", f"{int(r.get('V1'))}  V"),
+            ("V2", f"{int(r.get('V2'))}  V"),
+            ("V3", f"{int(r.get('V3'))}  V"),
+            ("PUISSANCE", f"{int(r.get('PUISSANCE'))}  KVA"),
+            ("HEURE", str(r.get('HEURE'))[0:5]),
+            ("DATE", str(pd.to_datetime(r.get("DATE")).date())),
+            ("taux de charge", f"{int(taux_val)}  %") # مدمجة هنا
         ]
-        for prop, val in properties:
-            tree.insert("", "end", values=(prop, val))
-    else:
-        messagebox.showinfo("نتيجة", "❌ عذراً، لم يتم العثور على هذه المحطة!")
+        
+        # المرور على الخصائص وطباعتها وتلوين نسبة الشحن بالأحمر إذا تجاوزت 80
+        for p, v in props: 
+            if p == "taux de charge" and float(taux_val) > 80:
+                # إضافة وسم danger باللون الأحمر
+                tree.insert("", "end", values=(p, v), tags=('danger',))
+            else:
+                tree.insert("", "end", values=(p, v))
+                
+    else: messagebox.showinfo("نتيجة", "❌ لم يتم العثور على هذه المحطة!")
 
-# دالة التصدير الفورية
+
 def export_data():
-    global res_df
-    if res_df is not None:
-        try:
-            desktop_path = os.path.join(os.path.expanduser("~"), "Desktop", "Highest_Current_Stations_Report.xlsx")
-            res_df.to_excel(desktop_path, index=False)
-            error_lbl.config(text="✅ تم تصدير الجدول بالكامل بنجاح إلى سطح المكتب!", fg="green")
-        except Exception:
-            error_lbl.config(text="❌ فشل التصدير، تأكد من إغلاق ملف التقرير إذا كان مفتوحاً مسبقاً.", fg="red")
-    else:
-        error_lbl.config(text="❌ لا توجد بيانات لتصديرها!", fg="red")
+    if res_df is None: return
+    try:
+        out_name = f"{os.path.splitext(os.path.basename(path_in_var.get().strip()))[0]}_Processed.xlsx"
+        res_df.to_excel(os.path.join(os.path.expanduser("~"), "Desktop", out_name), index=False)
+        error_lbl.config(text=f"✅ تم التصدير لسطح المكتب باسم: {out_name}", fg="green")
+    except: error_lbl.config(text="❌ فشل التصدير، تأكد من إغلاق الملف.", fg="red")
 
-def on_tab_change(event):
-    if notebook.index(notebook.select()) == 0:
-        error_lbl.config(text="")
+def plot_station_currents():
+    for w in graph_frame.winfo_children(): w.destroy()
+    # هنا تم حذف القوس [135] ليعمل البحث والرسم بسلام
+    q = graph_search_var.get().strip().lower()
+    if not q or df_clean is None: return
+    s_data = df_clean[df_clean['POSTE'].astype(str).str.lower() == q].sort_values('DATE')
+    if not s_data.empty:
+        fig, ax = plt.subplots(figsize=(5, 3.5), dpi=100)
+        for col, c in zip(['I1', 'I2', 'I3'], ['#FF5722', '#4CAF50', '#2196F3']):
+            ax.plot(s_data['DATE'].astype(str), s_data[col], label=col, marker='o', color=c)
+        ax.set_title(f"POSTE: {q.upper()}"), ax.legend(), ax.grid(True, linestyle='--')
+        plt.setp(ax.get_xticklabels(), rotation=30, ha='right', fontsize=8)
+        fig.tight_layout()
+        FigureCanvasTkAgg(fig, master=graph_frame).get_tk_widget().pack(fill="both", expand=True)
+    else: messagebox.showinfo("نتيجة", "❌ لم يتم العثور على المركز للرسم!")
 
-# --- بناء الواجهة الرسومية الناصعة (Tkinter) ---
+# الواجهة الرسومية
 root = tk.Tk()
-root.title("نظام المحطات الكهربائية - مشروع DistDebila")
+root.title("مشروع DistDebila")
 root.geometry("600x700")
-root.configure(bg="#f5f5f5")
 
-icon_path = os.path.join(current_dir, "icon.ico")
-if os.path.exists(icon_path):
-    root.iconbitmap(icon_path)
 
 notebook = ttk.Notebook(root)
-notebook.pack(pady=10, fill="both", expand=True)
-notebook.bind("<<NotebookTabChanged>>", on_tab_change)
+notebook.pack(fill="both", expand=True, pady=5)
 
-# --- التبويب الأول: تحميل البيانات ---
-tab1 = tk.Frame(notebook, bg="#ffffff")
-notebook.add(tab1, text=" تحميل البيانات ")
-
-tk.Label(tab1, text="مرحباً بك في نظام إدارة المحطات", font=("Arial", 16, "bold"), bg="#ffffff", fg="black").pack(pady=15)
-tk.Label(tab1, text="مشروع DistDebila", font=("Arial", 11), bg="#ffffff", fg="grey").pack()
-
-frame_file = tk.Frame(tab1, bg="#ffffff")
-frame_file.pack(pady=30)
-
+# التبويب 1
+t1 = tk.Frame(notebook, bg="white"); notebook.add(t1, text=" تحميل البيانات ")
 path_in_var = tk.StringVar()
-path_entry = tk.Entry(frame_file, textvariable=path_in_var, width=40, font=("Arial", 10), state="readonly")
-path_entry.pack(side="left", padx=5)
+f_file = tk.Frame(t1, bg="white"); f_file.pack(pady=40)
+tk.Entry(f_file, textvariable=path_in_var, width=35).pack(side="left", padx=5)
+tk.Button(f_file, text="اختر الملف 📁", command=handle_pick_files).pack(side="left")
+tk.Button(t1, text="معالجة البيانات", command=start_process, bg="#2196F3", fg="white").pack(pady=10)
+error_lbl = tk.Label(t1, text="", bg="white"); error_lbl.pack()
 
-btn_pick = tk.Button(frame_file, text="اختر الملف 📁", command=handle_pick_files, font=("Arial", 10), bg="#e0e0e0")
-btn_pick.pack(side="left")
-
-btn_process = tk.Button(tab1, text="الدخول ونظام المعالجة", command=start_process, font=("Arial", 12, "bold"), bg="#2196F3", fg="white", bd=0, padx=15, pady=8)
-btn_process.pack(pady=20)
-
-error_lbl = tk.Label(tab1, text="", font=("Arial", 11), bg="#ffffff")
-error_lbl.pack(pady=10)
-
-# --- التبويب الثاني: البحث والتصدير ---
-tab2 = tk.Frame(notebook, bg="#ffffff")
-notebook.add(tab2, text=" البحث والتصدير ")
-
-tk.Label(tab2, text="استعلام عن محطة كهربائية", font=("Arial", 14, "bold"), bg="#ffffff", fg="black").pack(pady=15)
-
-frame_search = tk.Frame(tab2, bg="#ffffff")
-frame_search.pack(pady=10)
-
+# التبويب 2
+t2 = tk.Frame(notebook, bg="white"); notebook.add(t2, text=" الاستعلام والتصدير ")
+f_search = tk.Frame(t2, bg="white"); f_search.pack(pady=10)
 search_in_var = tk.StringVar()
-search_entry = tk.Entry(frame_search, textvariable=search_in_var, width=25, font=("Arial", 12))
-search_entry.pack(side="left", padx=5)
+tk.Entry(f_search, textvariable=search_in_var, width=20).pack(side="left", padx=5)
+tk.Button(f_search, text="ابحث", command=search_station, bg="#4CAF50", fg="white").pack(side="left")
+tree = ttk.Treeview(t2, columns=("الخاصية", "القيمة"), show="headings", height=8)
+tree.heading("الخاصية", text="الخاصية"); tree.heading("القيمة", text="القيمة"); tree.pack(pady=10, fill="both", expand=True, padx=20)
+tk.Button(t2, text="تصدير التقرير كاملاً 📄", command=export_data, bg="#9C27B0", fg="white").pack(pady=10)
 
-btn_search = tk.Button(frame_search, text="ابحث", command=search_station, font=("Arial", 10, "bold"), bg="#4CAF50", fg="white", bd=0, padx=10, pady=4)
-btn_search.pack(side="left")
+# التبويب 3
+t3 = tk.Frame(notebook, bg="white"); notebook.add(t3, text=" المنحنى البياني 📈 ")
+f_g_search = tk.Frame(t3, bg="white"); f_g_search.pack(pady=10)
+graph_search_var = tk.StringVar()
+tk.Entry(f_g_search, textvariable=graph_search_var, width=20).pack(side="left", padx=5)
+tk.Button(f_g_search, text="رسم 📊", command=plot_station_currents, bg="#FF9800", fg="white").pack(side="left")
+graph_frame = tk.Frame(t3, bg="#f5f5f5"); graph_frame.pack(fill="both", expand=True, padx=20, pady=10)
 
-# جدول عرض البيانات الاحترافي (DataTable)
-tree_frame = tk.Frame(tab2)
-tree_frame.pack(pady=15, fill="both", expand=True, padx=20)
-
-tree = ttk.Treeview(tree_frame, columns=("الخاصية", "القيمة المسجلة"), show="headings", height=11)
-tree.heading("الخاصية", text="الخاصية")
-tree.heading("القيمة المسجلة", text="القيمة المسجلة")
-tree.column("الخاصية", anchor="center", width=150)
-tree.column("القيمة المسجلة", anchor="center", width=150)
-tree.pack(fill="both", expand=True)
-
-btn_export = tk.Button(tab2, text="تصدير التقرير المفلتر كاملاً إلى إكسيل 📄", command=export_data, font=("Arial", 11, "bold"), bg="#9C27B0", fg="white", bd=0, padx=15, pady=8)
-btn_export.pack(pady=20)
-
-if __name__ == "__main__":
-    root.mainloop()
+root.mainloop()
 
 
 
