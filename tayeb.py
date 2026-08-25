@@ -42,7 +42,6 @@ def start_process():
         error_lbl.config(text="✅ تم تحميل ومعالجة البيانات بنجاح!", fg="green")
     except Exception as e: 
         error_lbl.config(text=f"❌ خطأ في الملف! {str(e)}", fg="red")
-
 def search_station():
     for item in tree.get_children(): 
         tree.delete(item)
@@ -52,10 +51,18 @@ def search_station():
     
     match = res_df[res_df["POSTE"].astype(str).str.lower() == q]
     if not match.empty:
-        # هنا الإصلاح: نأخذ السطر الأول كـ Series لتوصيل دالة .get() بشكل صحيح
-        r = match.iloc[0]
+        r = match.iloc[0]  # التأكد من جلب السطر الأول كـ Series
         
-        taux_val = 0 if pd.isna(r.get('taux de charge\n(%)')) else r.get('taux de charge\n(%)')
+        # 🛠️ حل المشكلة: جلب القيم في متغيرات مستقلة لتفادي الـ backslash داخل f-string
+        key_taux_charge = 'taux de charge\n(%)'
+        key_taux_phase = 'taux\nphase chargé \n(%)'
+        key_desequilibre = 'DESEQUILlibre\n(%)'
+        
+        taux_val = 0 if pd.isna(r.get(key_taux_charge)) else r.get(key_taux_charge)
+        taux_phase_val = r.get(key_taux_phase, 0)
+        desequilibre_val = r.get(key_desequilibre, 0)
+        
+        # مصفوفة الخصائص الآمنة الآن
         props = [
             ("I1", f"{int(r.get('I1', 0))}  A"), 
             ("I2", f"{int(r.get('I2', 0))}  A"), 
@@ -68,13 +75,15 @@ def search_station():
             ("HEURE", str(r.get('HEURE', ''))[0:5]), 
             ("DATE", pd.to_datetime(r.get("DATE")).strftime('%d-%m-%Y') if pd.notna(r.get("DATE")) else ""),
             ("taux de charge", f"{int(taux_val)}  %"),
-            ("taux phase chargé ", f"{int(r.get('taux\nphase chargé \n(%)', 0))}  %"),
-            ("DESEQUILlibre", f"{int(r.get('DESEQUILlibre\n(%)', 0))}  %"),
+            ("taux phase chargé ", f"{int(0 if pd.isna(taux_phase_val) else taux_phase_val)}  %"),
+            ("DESEQUILlibre", f"{int(0 if pd.isna(desequilibre_val) else desequilibre_val)}  %")
         ]
+        
         for p, v in props:
             tree.insert("", "end", values=(p, v), tags=('danger',) if p == "taux de charge" and float(taux_val) > 80 else ())
     else: 
         messagebox.showinfo("نتيجة", "❌ لم يتم العثور على هذه المحطة!")
+
 
 def export_data():
     if res_df is None: 
