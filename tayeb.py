@@ -1,210 +1,141 @@
-import os
-import sys
-import pandas as pd
-import tkinter as tk
-from tkinter import ttk, messagebox, filedialog
-import matplotlib.pyplot as plt
+import os, pandas as pd, tkinter as tk, matplotlib.pyplot as plt
+from tkinter import ttk, messagebox, filedialog, simpledialog
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
-
-# مسار التطبيق والبيانات
 res_df, df_clean = None, None
-
-# 🛠️ تخصيص شريط الأدوات لإظهار التراجع والزوم فقط وحذف زر الهوم تماماً
 class CustomToolbar(NavigationToolbar2Tk):
-    def __init__(self, canvas, window, pack_toolbar=False):
-        self.toolitems = (
-            ('Back', 'Back to previous view', 'back', 'back'),
-            ('Forward', 'Forward to next view', 'forward', 'forward'),
-            (None, None, None, None),
-            ('Zoom', 'Zoom to rectangle', 'zoom_to_rect', 'zoom'),
-        )
-        super().__init__(canvas, window, pack_toolbar=pack_toolbar)
-
+    def __init__(self, canvas, window):
+        self.toolitems = (('Back', '', 'back', 'back'), ('Forward', '', 'forward', 'forward'), (None,None,None,None), ('Zoom', '', 'zoom_to_rect', 'zoom'))
+        super().__init__(canvas, window, pack_toolbar=False)
 def handle_pick_files():
-    p = path_in_var.get().strip()
-    if p and os.path.exists(p): 
-        return error_lbl.config(text="✅ تم اعتماد المسار اليدوي!", fg="green")
-    path = filedialog.askopenfilename(title="اختر ملف الإكسيل", filetypes=[("Excel files", "*.xlsx *.xls")])
-    if path: 
-        path_in_var.set(path)
-        error_lbl.config(text="✅ تم اختيار الملف بنجاح", fg="green")
-
+    path = filedialog.askopenfilename(filetypes=[("Excel files", "*.xlsx *.xls")])
+    if path: path_in_var.set(path); error_lbl.config(text="✅ تم اختيار الملف", fg="green")
 def start_process():
     global res_df, df_clean
     p = path_in_var.get().strip()
-    if not p or not os.path.exists(p): 
-        return error_lbl.config(text="❌ المسار خاطئ أو فارغ!", fg="red")
+    if not os.path.exists(p): return error_lbl.config(text="❌ المسار خاطئ!", fg="red")
     try:
         df_clean = pd.read_excel(p).dropna(subset=["POSTE", "I1", "I2", "I3"]).copy()
         df_clean["POSTE"] = df_clean["POSTE"].astype(str).str.replace("853P", "P", regex=True)
         df_clean["Total_I"] = df_clean["I1"] + df_clean["I2"] + df_clean["I3"]
         res_df = df_clean.loc[df_clean.groupby("POSTE")["Total_I"].idxmax()].copy()
-        error_lbl.config(text="✅ تم تحميل ومعالجة البيانات بنجاح!", fg="green")
-    except Exception as e: 
-        error_lbl.config(text=f"❌ خطأ في الملف! {str(e)}", fg="red")
+        error_lbl.config(text="✅ تم معالجة البيانات بنجاح!", fg="green")
+    except Exception as e: error_lbl.config(text=f"❌ خطأ: {str(e)}", fg="red")
 def search_station():
-    for item in tree.get_children(): 
-        tree.delete(item)
+    for item in tree.get_children(): tree.delete(item)
     q = search_in_var.get().strip().lower()
-    if not q or res_df is None: 
-        return messagebox.showerror("خطأ", "تأكد من كتابة المحطة ومعالجة الملف!")
-    
+    if not q or res_df is None: return messagebox.showerror("خطأ", "تأكد من كتابة المحطة ومعالجة الملف!")
     match = res_df[res_df["POSTE"].astype(str).str.lower() == q]
     if not match.empty:
-        r = match.iloc[0]  # التأكد من جلب السطر الأول كـ Series
-        
-        # 🛠️ حل المشكلة: جلب القيم في متغيرات مستقلة لتفادي الـ backslash داخل f-string
-        key_taux_charge = 'taux de charge\n(%)'
-        key_taux_phase = 'taux\nphase chargé \n(%)'
-        key_desequilibre = 'DESEQUILlibre\n(%)'
-        
-        taux_val = 0 if pd.isna(r.get(key_taux_charge)) else r.get(key_taux_charge)
-        taux_phase_val = r.get(key_taux_phase, 0)
-        desequilibre_val = r.get(key_desequilibre, 0)
-        
-        # مصفوفة الخصائص الآمنة الآن
+        r = match.iloc[0]
+        taux = 0 if pd.isna(r.get('taux de charge\n(%)')) else r.get('taux de charge\n(%)')
         props = [
-            ("I1", f"{int(r.get('I1', 0))}  A"), 
-            ("I2", f"{int(r.get('I2', 0))}  A"), 
-            ("I3", f"{int(r.get('I3', 0))}  A"),
-            ("Total I", f"{int(r.get('Total_I', 0))}  A"), 
-            ("V1", f"{int(r.get('V1', 0))}  V"), 
-            ("V2", f"{int(r.get('V2', 0))}  V"),
-            ("V3", f"{int(r.get('V3', 0))}  V"), 
-            ("PUISSANCE", f"{int(r.get('PUISSANCE', 0))}  KVA"),
-            ("HEURE", str(r.get('HEURE', ''))[0:5]), 
-            ("DATE", pd.to_datetime(r.get("DATE")).strftime('%d-%m-%Y') if pd.notna(r.get("DATE")) else ""),
-            ("taux de charge", f"{int(taux_val)}  %"),
-            ("taux phase chargé ", f"{int(0 if pd.isna(taux_phase_val) else taux_phase_val)}  %"),
-            ("DESEQUILlibre", f"{int(0 if pd.isna(desequilibre_val) else desequilibre_val)}  %")
+            ("I1", f"{int(r.get('I1', 0))} A"), ("I2", f"{int(r.get('I2', 0))} A"), ("I3", f"{int(r.get('I3', 0))} A"),
+            ("Total I", f"{int(r.get('Total_I', 0))} A"), ("V1", f"{int(r.get('V1', 0))} V"), ("V2", f"{int(r.get('V2', 0))} V"),
+            ("V3", f"{int(r.get('V3', 0))} V"), ("PUISSANCE", f"{int(r.get('PUISSANCE', 0))} KVA"),
+            ("HEURE", str(r.get('HEURE', ''))[:5]), ("DATE", pd.to_datetime(r.get("DATE")).strftime('%d-%m-%Y') if pd.notna(r.get("DATE")) else ""),
+            ("taux de charge", f"{int(taux)} %"), ("taux phase chargé ", f"{int(r.get('taux\nphase chargé \n(%)', 0))} %"), ("DESEQUILlibre", f"{int(r.get('DESEQUILlibre\n(%)', 0))} %")
         ]
-        
-        for p, v in props:
-            tree.insert("", "end", values=(p, v), tags=('danger',) if p == "taux de charge" and float(taux_val) > 80 else ())
-    else: 
-        messagebox.showinfo("نتيجة", "❌ لم يتم العثور على هذه المحطة!")
-
+        try: taux_float = float(str(taux).replace('%', '').strip())
+        except: taux_float = 0
+        for p, v in props: tree.insert("", "end", values=(p, v), tags=('danger',) if p == "taux de charge" and taux_float > 80 else ())
+    else: messagebox.showinfo("نتيجة", "❌ لم يتم العثور على المحطة!")
 
 def export_data():
-    if res_df is None: 
-        return
+    if res_df is None: return messagebox.showwarning("تنبيه", "⚠️ يرجى معالجة البيانات أولاً قبل التصدير!")
     try:
-        base_name = os.path.splitext(os.path.basename(path_in_var.get().strip()))[0]
-        out_name = f"{base_name}_Processed.xlsx"
+        out_name = f"{os.path.splitext(os.path.basename(path_in_var.get().strip()))[0]}_Processed.xlsx"
         res_df.to_excel(os.path.join(os.path.expanduser("~"), "Desktop", out_name), index=False)
         error_lbl.config(text=f"✅ تم التصدير لسطح المكتب: {out_name}", fg="green")
-    except Exception as e: 
-        error_lbl.config(text=f"❌ فشل التصدير، تأكد من إغلاق الملف. {str(e)}", fg="red")
+    except Exception as e: error_lbl.config(text=f"❌ فشل التصدير! {str(e)}", fg="red")
 
-def plot_station_currents():
-    for w in graph_frame.winfo_children(): 
-        w.destroy()
-    q = graph_search_var.get().strip().lower()
-    if not q or df_clean is None: 
-        return
-    
-    selected_currents = []
-    if chk_i1_var.get(): selected_currents.append(('I1', '#FF5722'))
-    if chk_i2_var.get(): selected_currents.append(('I2', '#4CAF50'))
-    if chk_i3_var.get(): selected_currents.append(('I3', '#2196F3'))
-    if not selected_currents: 
-        return messagebox.showinfo("تنبيه", "⚠️ يرجى اختيار تيار واحد على الأقل للرسم!")
-
-    s_data = df_clean[df_clean['POSTE'].astype(str).str.lower() == q].copy()
-    if s_data.empty: 
-        return messagebox.showinfo("نتيجة", "❌ لم يتم العثور على المركز!")
-    
-    s_data_clean = s_data[(s_data['I1'] > 0) & (s_data['I2'] > 0) & (s_data['I3'] > 0)].copy()
-    if s_data_clean.empty: 
-        return messagebox.showinfo("تنبيه", "⚠️ جميع قراءات التيارات تساوي 0!")
-        
+def export_by_taux():
+    if res_df is None: return messagebox.showwarning("تنبيه", "⚠️ يرجى معالجة البيانات أولاً!")
+    user_val = simpledialog.askinteger("تصفية البيانات", "أدخل الحد الأدنى لنسبة( taux de charge)  المُراد تصديرها :", minvalue=0, maxvalue=200)
+    if user_val is None: return
     try:
-        s_data_clean['time_str'] = s_data_clean['HEURE'].astype(str).str.strip().str[:5]
-        s_data_clean['date_str'] = pd.to_datetime(s_data_clean['DATE']).dt.strftime('%Y-%m-%d')
-        s_data_clean['datetime_comb'] = pd.to_datetime(s_data_clean['date_str'] + ' ' + s_data_clean['time_str'])
+        key_taux = 'taux de charge\n(%)'
+        temp_df = res_df.copy()
+        temp_df['taux_numeric'] = pd.to_numeric(temp_df[key_taux].astype(str).str.replace('%', '').str.strip(), errors='coerce').fillna(0)
+        filtered_df = temp_df[temp_df['taux_numeric'] >= user_val].drop(columns=['taux_numeric'])
+        if filtered_df.empty: return messagebox.showinfo("نتيجة", f"ℹ️ لا توجد محطات بنسبة تحميل أكبر من أو تساوي {user_val}%!")
+        out_name = f"المحطات_الأعلى_من_{user_val}_بالمئة.xlsx"
+        filtered_df.to_excel(os.path.join(os.path.expanduser("~"), "Desktop", out_name), index=False)
+        error_lbl.config(text=f"✅ تم تصدير {len(filtered_df)} محطة لسطح المكتب باسم: {out_name}", fg="green")
+    except Exception as e: error_lbl.config(text=f"❌ فشل تصفية البيانات! {str(e)}", fg="red")
+def export_by_DESEQUILlibre():
+    if res_df is None: return messagebox.showwarning("تنبيه", "⚠️ يرجى معالجة البيانات أولاً!")
+    user_val = simpledialog.askinteger("تصفية البيانات", "أدخل الحد الأدنى لنسبة (DESEQUILlibre) المُراد تصديرها :", minvalue=0, maxvalue=200)
+    if user_val is None: return
+    try:
+        key_DESEQUILlibre = 'DESEQUILlibre\n(%)'
+        temp_df = res_df.copy()
+        temp_df['DESEQUILlibre_numeric'] = pd.to_numeric(temp_df[key_DESEQUILlibre].astype(str).str.replace('%', '').str.strip(), errors='coerce').fillna(0)
+        filtered_df = temp_df[temp_df['DESEQUILlibre_numeric'] >= user_val].drop(columns=['DESEQUILlibre_numeric'])
+        if filtered_df.empty: return messagebox.showinfo("نتيجة", f"ℹ️ لا توجد محطات بنسبة تحميل أكبر من أو تساوي {user_val}%!")
+        out_name = f"المحطات_الأعلى_من_{user_val}_بالمئة.xlsx"
+        filtered_df.to_excel(os.path.join(os.path.expanduser("~"), "Desktop", out_name), index=False)
+        error_lbl.config(text=f"✅ تم تصدير {len(filtered_df)} محطة لسطح المكتب باسم: {out_name}", fg="green")
+    except Exception as e: error_lbl.config(text=f"❌ فشل تصفية البيانات! {str(e)}", fg="red")
+def plot_station_currents():
+    for w in graph_frame.winfo_children(): w.destroy()
+    q = graph_search_var.get().strip().lower()
+    if not q or df_clean is None: return messagebox.showinfo("تنبيه", "⚠️ يرجى معالجة الملف أولاً!")
+    selected = []
+    if chk_i1_var.get(): selected.append(('I1', '#FF5722'))
+    if chk_i2_var.get(): selected.append(('I2', '#2ecc71'))
+    if chk_i3_var.get(): selected.append(('I3', '#3498db'))
+    if not selected: return messagebox.showinfo("تنبيه", "⚠️ اختر تياراً واحداً على الأقل!")
+    s_data = df_clean[df_clean['POSTE'].astype(str).str.lower() == q].copy()
+    if s_data.empty: return messagebox.showinfo("نتيجة", "❌ لم يتم العثور على المركز!")
+    s_data_clean = s_data[(s_data['I1'] > 0) & (s_data['I2'] > 0) & (s_data['I3'] > 0)].copy()
+    try:
+        s_data_clean['datetime_comb'] = pd.to_datetime(s_data_clean['DATE'].astype(str) + ' ' + s_data_clean['HEURE'].astype(str).str.strip().str[:5])
         s_data_clean = s_data_clean.sort_values('datetime_comb')
-        
-        s_data_clean['display_time'] = s_data_clean['datetime_comb'].dt.strftime('%d/%m %H:%M')
-        x_values = s_data_clean['display_time']
-        
-        d_min = pd.to_datetime(s_data_clean['DATE'].min()).strftime('%d-%m-%Y')
-        d_max = pd.to_datetime(s_data_clean['DATE'].max()).strftime('%d-%m-%Y')
-        title_period = f" ({d_min} to {d_max})" if d_min != d_max else f" ({d_min})"
-    except:
-        s_data_clean = s_data_clean.sort_values('HEURE')
-        x_values, title_period = s_data_clean['HEURE'].astype(str).str.strip().str[:5], ""
+        x_values = s_data_clean['datetime_comb'].dt.strftime('%d/%m %H:%M')
+        title_period = f" ({pd.to_datetime(s_data_clean['DATE'].min()).strftime('%d-%m-%Y')} to {pd.to_datetime(s_data_clean['DATE'].max()).strftime('%d-%m-%Y')})"
+    except: s_data_clean = s_data_clean.sort_values('HEURE'); x_values, title_period = s_data_clean['HEURE'].astype(str).str.strip().str[:5], ""
+    fig, ax = plt.subplots(figsize=(5, 3.2), dpi=100)
+    for col, c in selected: ax.plot(x_values, s_data_clean[col], label=col, marker='o', markersize=3, linewidth=1.5, color=c)
+    ax.set_title(f"POSTE: {q.upper()}{title_period}", fontsize=9, fontweight='bold'); ax.legend(fontsize=8); ax.grid(True, linestyle='--', alpha=0.5)
+    plt.setp(ax.get_xticklabels(), rotation=45, ha='right', fontsize=8); fig.tight_layout()
+    canvas = FigureCanvasTkAgg(fig, master=graph_frame); canvas.draw()
+    toolbar = CustomToolbar(canvas, graph_frame); toolbar.update(); toolbar.pack(side=tk.TOP, fill=tk.X); canvas.get_tk_widget().pack(side=tk.TOP, fill="both", expand=True)
+# 🖥️ الواجهة الرسومية
+root = tk.Tk(); root.title("DistDebilaTf"); root.geometry("680x750")
+notebook = ttk.Notebook(root); notebook.pack(fill="both", expand=True, padx=10, pady=5)
 
-    fig, ax = plt.subplots(figsize=(5, 3.5), dpi=100)
-    
-    for col, c in selected_currents:
-        ax.plot(x_values, s_data_clean[col], label=col, marker='o', markersize=3, linewidth=1, color=c)
-        
-    ax.set_title(f"POSTE: {q.upper()}{title_period}", fontsize=9, fontweight='bold')
-    ax.legend(fontsize=8)
-    ax.grid(True, linestyle='--', alpha=0.5)
-    
-    plt.setp(ax.get_xticklabels(), rotation=45, ha='right', fontsize=8)
-    fig.tight_layout()
-    
-    canvas = FigureCanvasTkAgg(fig, master=graph_frame)
-    canvas.draw()
-    
-    toolbar = CustomToolbar(canvas, graph_frame)
-    toolbar.update()
-    toolbar.pack(side=tk.TOP, fill=tk.X)
-    canvas.get_tk_widget().pack(side=tk.TOP, fill="both", expand=True)
+# التبويب 1
+t1 = tk.Frame(notebook, bg="#f8f9fa"); notebook.add(t1, text="  تحميل البيانات 📂  ")
+f_file = tk.LabelFrame(t1, text=" مسار ملف الإكسيل ", bg="white", fg="#7f8c8d"); f_file.pack(pady=20, padx=20, fill="x")
+path_in_var = tk.StringVar(value="/Users/ahmad/Desktop/BORGRAM DISTRIC/Charge BT JUILLET 2026.xlsx")
+tk.Entry(f_file, textvariable=path_in_var, font=("Arial", 11), bg="#f1f2f6", bd=0).pack(side="left", padx=10, pady=10, fill="x", expand=True)
+tk.Button(f_file, text="اختر الملف 📁", command=handle_pick_files, bg="#7f8c8d", fg="white", bd=0).pack(side="right", padx=10, pady=10)
+tk.Button(t1, text="بدء معالجة البيانات ⚙️", command=start_process, font=("Arial", 12, "bold"), bg="#2980b9", fg="white", bd=0).pack(pady=10, padx=20, fill="x")
+tk.Button(t1, text="تصدير التقرير الكامل إلى سطح المكتب 📄", command=export_data, font=("Arial", 11, "bold"), bg="#8e44ad", fg="white", bd=0).pack(pady=10, padx=20, fill="x")
+tk.Button(t1, text=" taux de charge 🎯", command=export_by_taux, font=("Arial", 11, "bold"), bg="#d35400", fg="white", bd=0).pack(pady=10, padx=20, fill="x")
+tk.Button(t1, text=" DESEQUILlibre  🎯", command=export_by_DESEQUILlibre, font=("Arial", 11, "bold"), bg="#d35400", fg="white", bd=0).pack(pady=10, padx=20, fill="x")
 
-# 🖥️ الواجهة الرسومية (GUI)
-root = tk.Tk()
-root.title("مشروع DistDebilaTf")
-root.geometry("650x780")
+error_lbl = tk.Label(t1, font=("Arial", 11, "bold"), bg="#f8f9fa"); error_lbl.pack(pady=10)
 
-notebook = ttk.Notebook(root)
-notebook.pack(fill="both", expand=True, pady=5)
-
-# التبويب 1: تحميل البيانات
-t1 = tk.Frame(notebook, bg="white")
-notebook.add(t1, text=" تحميل البيانات ")
-path_in_var = tk.StringVar(value="")
-f_file = tk.Frame(t1, bg="white")
-f_file.pack(pady=40)
-tk.Entry(f_file, textvariable=path_in_var, width=35).pack(side="left", padx=5)
-tk.Button(f_file, text="اختر الملف 📁", command=handle_pick_files).pack(side="left")
-tk.Button(t1, text="معالجة البيانات", command=start_process, bg="#2196F3", fg="white").pack(pady=10)
-error_lbl = tk.Label(t1, text="", bg="white")
-error_lbl.pack()
-
-# التبويب 2: الاستعلام والتصدير
-t2 = tk.Frame(notebook, bg="white")
-notebook.add(t2, text=" الاستعلام والتصدير ")
-f_search = tk.Frame(t2, bg="white")
-f_search.pack(pady=10)
+# التبويب 2
+t2 = tk.Frame(notebook, bg="#f8f9fa"); notebook.add(t2, text="  الاستعلام 🔍  ")
+f_search = tk.Frame(t2, bg="#f8f9fa"); f_search.pack(pady=10, padx=20, fill="x")
 search_in_var = tk.StringVar()
-tk.Entry(f_search, textvariable=search_in_var, width=20).pack(side="left", padx=5)
-tk.Button(f_search, text="ابحث", command=search_station, bg="#4CAF50", fg="white").pack(side="left")
-tree = ttk.Treeview(t2, columns=("الخاصية", "القيمة"), show="headings", height=8)
-tree.heading("الخاصية", text="الخاصية")
-tree.heading("القيمة", text="القيمة")
-tree.pack(pady=10, fill="both", expand=True, padx=20)
-tree.tag_configure('danger', foreground='red', font=('Arial', 10, 'bold'))
-tk.Button(t2, text="تصدير التقرير كامل 📄", command=export_data, bg="#9C27B0", fg="white").pack(pady=10)
+tk.Entry(f_search, textvariable=search_in_var, font=("Arial", 12), width=20).pack(side="left", padx=5)
+tk.Button(f_search, text="بحث سريع 🔍", command=search_station, bg="#27ae60", fg="white", bd=0).pack(side="left", padx=5)
+tree = ttk.Treeview(t2, columns=("الخاصية", "القيمة"), show="headings", height=12)
+tree.heading("الخاصية", text="الخاصية"); tree.heading("القيمة", text="القيمة"); tree.pack(pady=10, fill="both", expand=True, padx=20)
+tree.tag_configure('danger', foreground='#e74c3c', font=('Arial', 11, 'bold'))
 
-# التبويب 3: المنحنى البياني
-t3 = tk.Frame(notebook, bg="white")
-notebook.add(t3, text=" المنحنى البياني 📈 ")
-f_g_search = tk.Frame(t3, bg="white")
-f_g_search.pack(pady=10)
+# التبويب 3
+t3 = tk.Frame(notebook, bg="#f8f9fa"); notebook.add(t3, text="  المنحنى البياني 📈  ")
+f_g_search = tk.Frame(t3, bg="#f8f9fa"); f_g_search.pack(pady=10, padx=20, fill="x")
 graph_search_var = tk.StringVar()
-tk.Entry(f_g_search, textvariable=graph_search_var, width=15).pack(side="left", padx=5)
-
+tk.Entry(f_g_search, textvariable=graph_search_var, font=("Arial", 11), width=12).pack(side="left", padx=5)
 chk_i1_var, chk_i2_var, chk_i3_var = tk.BooleanVar(value=True), tk.BooleanVar(value=True), tk.BooleanVar(value=True)
-tk.Checkbutton(f_g_search, text="I1", variable=chk_i1_var, bg="white", fg="#FF5722", font=('Arial', 10, 'bold')).pack(side="left", padx=2)
-tk.Checkbutton(f_g_search, text="I2", variable=chk_i2_var, bg="white", fg="#4CAF50", font=('Arial', 10, 'bold')).pack(side="left", padx=2)
-tk.Checkbutton(f_g_search, text="I3", variable=chk_i3_var, bg="white", fg="#2196F3", font=('Arial', 10, 'bold')).pack(side="left", padx=2)
-
-tk.Button(f_g_search, text="رسم 📊", command=plot_station_currents, bg="#FF9800", fg="white").pack(side="left", padx=5)
-graph_frame = tk.Frame(t3, bg="#f5f5f5")
-graph_frame.pack(fill="both", expand=True, padx=20, pady=10)
-
+for name, var, col in [("I1", chk_i1_var, "#FF5722"), ("I2", chk_i2_var, "#2ecc71"), ("I3", chk_i3_var, "#3498db")]:
+    tk.Checkbutton(f_g_search, text=name, variable=var, bg="#f8f9fa", fg=col, font=('Arial', 11, 'bold')).pack(side="left", padx=5)
+tk.Button(f_g_search, text="رسم المخطط 📊", command=plot_station_currents, bg="#d35400", fg="white", bd=0).pack(side="right", padx=5)
+graph_frame = tk.Frame(t3, bg="#ffffff", bd=1, relief="solid"); graph_frame.pack(fill="both", expand=True, padx=20, pady=10)
 root.mainloop()
 
