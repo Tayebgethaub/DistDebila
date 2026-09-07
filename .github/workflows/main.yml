@@ -19,21 +19,19 @@ jobs:
       with:
         python-version: '3.11'
 
-    - name: Install dependencies
+    - name: Install dependencies from requirements.txt
       run: |
         python -m pip install --upgrade pip
-        # تثبيت كافة المكتبات ومنها matplotlib الضرورية للرسم البياني أوفلاين
-        pip install "numpy<2.0.0" pandas openpyxl matplotlib pyinstaller
+        pip install -r requirements.txt
 
-    - name: Build EXE with PyInstaller Clean Standard
+    - name: Build EXE with PyInstaller
       run: |
-        # استخدام الاسم الرسمي للملف المرفوع على جيت هاب (tayeb.py)
-        pyinstaller --noconsole --onedir --icon=icon.ico tayeb.py
+        # في حال عدم وجود ملف أيقونة، يمكن حذف --icon أو إضافة ملف افتراضي
+        pyinstaller --noconsole --onedir --clean tayeb.py
 
-    # ضغط المجلد الناتج بالكامل لسهولة النقل والاستخدام على الويندوز
     - name: Zip Artifact Folder
       run: |
-        powershell Compress-Archive -Path dist/tayeb/* -DestinationPath dist/tayeb-windows-app.zip
+        powershell Compress-Archive -Path dist/tayeb/* -DestinationPath dist/tayeb-windows-app.zip -Force
 
     - name: Upload Executable Artifact
       uses: actions/upload-artifact@v4
